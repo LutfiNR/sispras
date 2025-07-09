@@ -1,44 +1,13 @@
-/* eslint-disable */
-/**
- * @file /models/Stock.js
- * Model untuk data master inventaris sementara (barang habis pakai).
- */
-import mongoose, { Schema, model, models } from 'mongoose';
-
-const StockSchema = new Schema({
-  product: { type: Schema.Types.ObjectId, ref: 'ConsumableProduct', required: true, unique: true },
-  quantity: { type: Number, default: 0, min: 0 },
-  unit: { type: String, required: true },
-  reorder_point: { type: Number, default: 10 }, // Ambang batas stok rendah
-}, { timestamps: true });
-
-export const Stock = models.Stock || model('Stock', StockSchema);
-
-
-/**
- * @file /models/StockTransaction.js
- * Model untuk mencatat setiap transaksi stok masuk dan keluar.
- */
-const StockTransactionSchema = new Schema({
-  stock_item: { type: Schema.Types.ObjectId, ref: 'Stock', required: true },
-  type: { type: String, enum: ['penambahan', 'pengambilan'], required: true },
-  quantity_changed: { type: Number, required: true },
-  user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  person_name: { type: String, required: true },
-  person_role: { type: String },
-  notes: { type: String, trim: true },
-}, { timestamps: true });
-
-export const StockTransaction = models.StockTransaction || model('StockTransaction', StockTransactionSchema);
-
 
 /**
  * @file /lib/services/dashboardServices.js
  * Service terpusat untuk mengambil data agregat untuk dashboard.
  */
 import Asset from "@/models/Asset";
-// Impor model Stock dan StockTransaction yang baru dibuat di atas
-// import { Stock } from '@/models/Stock';
+import ConsumableStock from '@/models/ConsumableStock';
+import ConsumableLog from '@/models/ConsumableLog';
+import ConsumableProduct from '@/models/ConsumableProduct';
+
 // import { StockTransaction } from '@/models/StockTransaction';
 
 /**
@@ -48,42 +17,99 @@ export async function getDashboardSummary() {
   const totalAssets = await Asset.countDocuments();
   
   // Menjumlahkan semua kuantitas dari koleksi Stock
-  const totalTempStockResult = await Stock.aggregate([
+  const totalStockResult = await ConsumableStock.aggregate([
     { $group: { _id: null, total: { $sum: "$quantity" } } }
   ]);
-  const totalTempStock = totalTempStockResult[0]?.total || 0;
+  const totalStock = totalStockResult[0]?.total || 0;
 
-  return { totalAssets, totalTempStock };
+  return { totalAssets, totalStock };
 }
 
-/**
- * Mengambil daftar item dengan stok di bawah ambang batas minimum.
- */
 export async function getLowStockItems(limit = 5) {
-  const items = await Stock.find({ $expr: { $lte: ["$quantity", "$reorder_point"] } })
-    .populate('product', 'name')
-    .sort({ quantity: 1 })
-    .limit(limit)
-    .lean();
+  const items = await ConsumableStock.aggregate([
+    // Tahap 1: Filter item stok yang rendah
+    {
+      $match: {
+        $expr: { $lte: ["$quantity", "$reorder_point"] }
+      }
+    },
+    // Tahap 2: Urutkan hasil sebelum di-limit untuk performa
+    {
+      $sort: { quantity: 1 }
+    },
+    // Tahap 3: Batasi jumlah hasil
+    {
+      $limit: limit
+    },
+    // Tahap 4: Gabungkan dengan detail produk
+    {
+      $lookup: {
+        from: 'consumableproducts', // Nama koleksi produk habis pakai (biasanya bentuk jamak lowercase)
+        localField: 'product',
+        foreignField: '_id',
+        as: 'productDetails'
+      }
+    },
+    // Tahap 5: Buka array hasil lookup
+    {
+      $unwind: {
+        path: "$productDetails",
+        preserveNullAndEmptyArrays: true // Jaga item stok jika produknya terhapus
+      }
+    },
+    // Tahap 6: Bentuk ulang output (project) sesuai permintaan
+    {
+      $project: {
+        _id: 1, // Pertahankan _id dari item stok
+        productId: "$productDetails._id",
+        productName: "$productDetails.name",
+        quantity: 1,
+        unit: 1
+      }
+    }
+  ]);
   return items;
 }
 
 /**
- * Mengambil transaksi stok terbaru.
+ * Mengambil transaksi stok terbaru menggunakan Aggregation Pipeline.
  */
-export async function getRecentStockTransactions(limit = 5) {
-  const transactions = await StockTransaction.find({})
-    .sort({ createdAt: -1 })
-    .limit(limit)
-    .populate({
-        path: 'stock_item',
-        select: 'unit product',
-        populate: {
-            path: 'product',
-            select: 'name'
-        }
-    })
-    .populate('user', 'name') // Ambil nama pengguna sistem
-    .lean();
+export async function getRecentStockTransactions(limit = 7) {
+  const transactions = await ConsumableLog.aggregate([
+    // Tahap 1: Urutkan berdasarkan tanggal terbaru
+    { $sort: { createdAt: -1 } },
+    // Tahap 2: Batasi hasil
+    { $limit: limit },
+    // Tahap 3: Join dengan ConsumableStock
+    {
+      $lookup: {
+        from: 'consumablestocks', // Nama koleksi (biasanya jamak & lowercase)
+        localField: 'stock_item',
+        foreignField: '_id',
+        as: 'stock_item'
+      }
+    },
+    { $unwind: { path: '$stock_item', preserveNullAndEmptyArrays: true } },
+    // Tahap 4: Join dengan ConsumableProduct
+    {
+      $lookup: {
+        from: 'consumableproducts',
+        localField: 'stock_item.product',
+        foreignField: '_id',
+        as: 'stock_item.product'
+      }
+    },
+    { $unwind: { path: '$stock_item.product', preserveNullAndEmptyArrays: true } },
+    // Tahap 5: Join dengan User
+    {
+      $lookup: {
+        from: 'users', // Nama koleksi pengguna
+        localField: 'user',
+        foreignField: '_id',
+        as: 'user'
+      }
+    },
+    { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+  ]);
   return transactions;
 }

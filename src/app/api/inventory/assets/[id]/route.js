@@ -14,15 +14,16 @@ import connectToDatabase from '@/database/database';
  * GET: Mengambil data satu aset berdasarkan ID.
  */
 export async function GET(request, { params }) {
+    const { id } = await params;
+    if (!id) {
+      return NextResponse.json({ success: false, message: 'ID Aset tidak ditemukan.' }, { status: 400 });
+    }
+
   try {
     await connectToDatabase();
     const session = await getServerSession(authOptions);
     authorizeRole(session); // Memastikan pengguna terautentikasi
 
-    const { id } = await params;
-    if (!id) {
-      return NextResponse.json({ success: false, message: 'ID Aset tidak ditemukan.' }, { status: 400 });
-    }
 
     const asset = await getAssetById(id);
     return NextResponse.json({ success: true, data: asset });

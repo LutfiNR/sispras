@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 // 2. Import komponen dari MUI
 import { Button, Stack, IconButton, Box, Snackbar, Alert, Divider } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
+import { DataGrid, getGridStringOperators } from "@mui/x-data-grid";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
@@ -108,9 +108,21 @@ export default function RoomsPage() {
         );
       },
     },
-    { field: "floor", headerName: "Lantai", width: 150 },
-    { field: "building", headerName: "Gedung", width: 150 },
-    { field: "name", headerName: "Nama Ruangan", flex: 1 },
+    {
+      field: "floor", headerName: "Lantai", width: 150, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
+    },
+    {
+      field: "building", headerName: "Gedung", width: 150, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
+    },
+    {
+      field: "name", headerName: "Nama Ruangan", flex: 1, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
+    },
     {
       field: "actions",
       headerName: "Aksi",
@@ -118,7 +130,7 @@ export default function RoomsPage() {
       width: 120,
       disableExport: true,
       sortable: false,
-      filterable:false,
+      filterable: false,
       renderCell: (params) => (
         <Box
           height="100%"
@@ -153,7 +165,7 @@ export default function RoomsPage() {
 
   return (
     <Stack>
-      <Divider sx={{mb:2}}/>
+      <Divider sx={{ mb: 2 }} />
       <Box display="flex" justifyContent="end">
         <Button
           variant="contained"

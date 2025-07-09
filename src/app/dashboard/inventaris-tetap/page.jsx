@@ -4,8 +4,8 @@ import React from "react";
 import { useRouter } from "next/navigation";
 
 // Komponen MUI
-import { Box, Chip, Tooltip, IconButton } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
+import { Box, Tooltip, IconButton } from "@mui/material";
+import { DataGrid, getGridStringOperators } from "@mui/x-data-grid";
 import InfoIcon from '@mui/icons-material/Info';
 
 // Komponen Kustom & Service
@@ -47,7 +47,6 @@ export default function AssetAggregatePage() {
     const queryParams = new URLSearchParams({
       product: row.productId,
       location: row.locationId,
-      condition: row.condition,
     }).toString();
 
     // Arahkan ke halaman daftar aset individual dengan filter yang sudah diterapkan
@@ -64,20 +63,24 @@ export default function AssetAggregatePage() {
       align: "center",
       filterable: false,
       sortable: false,
-      renderCell: (params) => 
-         params.api.getRowIndexRelativeToVisibleRows(params.id) + 1,
+      renderCell: (params) =>
+        params.api.getRowIndexRelativeToVisibleRows(params.id) + 1,
     },
-    { field: "productName", headerName: "Nama Aset", flex: 1 },
-    { field: "brandName", headerName: "Merk", flex: 1  },
-    { field: "locationName", headerName: "Lokasi", flex: 1 },
     {
-      field: "condition",
-      headerName: "Kondisi",
-      width: 120,
-      renderCell: (params) => {
-        const color = params.value === 'Baik' ? 'success' : params.value === 'Rusak' ? 'error' : 'warning';
-        return <Chip label={params.value} color={color} size="small" sx={{width: '80px'}}/>
-      }
+      field: "productName", headerName: "Nama Aset", flex: 1,
+      filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
+    },
+    {
+      field: "brandName", headerName: "Merk", flex: 1, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
+    },
+    {
+      field: "locationName", headerName: "Lokasi", flex: 1, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
     },
     {
       field: "jumlah",
@@ -85,13 +88,15 @@ export default function AssetAggregatePage() {
       type: 'number',
       width: 65,
       headerAlign: "center",
+      filterable: false,
       align: "center",
     },
     {
       field: "estimated_price",
       headerName: "Harga Satuan",
-      flex: 1, 
+      flex: 1,
       type: 'number',
+      filterable: false,
       align: 'right',
       headerAlign: 'right',
       valueFormatter: (value) => {
@@ -113,7 +118,7 @@ export default function AssetAggregatePage() {
       sortable: false,
       renderCell: (params) => (
         <Tooltip title="Lihat Detail Aset">
-          <IconButton onClick={() => console.log(params.row)}>
+          <IconButton onClick={() => handleShowDetail(params.row)}>
             <InfoIcon color="info" />
           </IconButton>
         </Tooltip>
@@ -141,9 +146,24 @@ export default function AssetAggregatePage() {
         onSortModelChange={setSortModel}
         // Tampilan & Slot
         pageSizeOptions={[10, 25, 50]}
-        slots={{ toolbar: CustomToolbar }}
+        slots={{
+          toolbar: CustomToolbar
+        }}
+        slotProps={{
+          loadingOverlay: {
+            variant: "skeleton",
+            noRowsVariant: "skeleton",
+          },
+          toolbar: {
+            title: "Filter dan Export",
+          },
+          columnHeaders: {
+            title: {},
+          },
+        }}
         showToolbar
         sx={{
+
           backgroundColor: theme.palette.background.paper,
           "& .MuiDataGrid-columnHeaderTitle": {
             fontWeight: 600,

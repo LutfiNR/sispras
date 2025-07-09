@@ -9,7 +9,7 @@ import { Snackbar, Alert, Box, CircularProgress } from '@mui/material';
 // Komponen Kustom & Service
 import FormComponent from '@/components/dashboard/FormComponent';
 import { createConsumableProduct } from '@/services/consumableServices';
-import { getAllCategoriesForDropdown } from '@/services/consumableServices';
+import { getAllCategoriesForDropdown } from '@/services/categoryServices';
 import { useDropdownData } from '@/lib/hooks/useDropdownData';
 
 /**

@@ -5,9 +5,9 @@ import InventoryIcon from "@mui/icons-material/Inventory";
 import DoorBackIcon from '@mui/icons-material/DoorBack';
 import ViewStreamIcon from '@mui/icons-material/ViewStream';
 import TurnedInIcon from '@mui/icons-material/TurnedIn';
-import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import TableChartIcon from '@mui/icons-material/TableChart';
 import HistoryIcon from "@mui/icons-material/History";
+import CategoryIcon from '@mui/icons-material/Category';
 
 
 
@@ -69,6 +69,16 @@ export const NAVIGATION = [
     segment: "dashboard/inventaris-sementara/riwayat",
     title: "Riwayat",
     icon: <HistoryIcon />,
+  },
+  {
+    segment: "dashboard/inventaris-sementara/produk",
+    title: "Produk",
+    icon: <ViewStreamIcon />,
+  },
+  {
+    segment: "dashboard/inventaris-sementara/kategori",
+    title: "Kategori",
+    icon: <CategoryIcon />,
   },
 ];
 

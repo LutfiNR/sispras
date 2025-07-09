@@ -33,7 +33,7 @@ export function useDataGridServer(fetchFunction, rowProcessor = defaultRowProces
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    if(!initialFilters.productId){
+    if(!initialFilters.product){
       const apiFilters = convertFilterModelToApiParams(filterModel);
       try {
         const response = await fetchFunction({

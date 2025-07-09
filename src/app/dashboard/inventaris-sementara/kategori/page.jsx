@@ -1,11 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 
 // Komponen MUI
-import { Box, Tooltip, IconButton, Button, Chip } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
+import { Box, Tooltip, IconButton, Button, Snackbar, Stack, Divider, Alert } from "@mui/material";
+import { DataGrid, getGridStringOperators } from "@mui/x-data-grid";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
@@ -14,18 +14,13 @@ import CustomToolbar from "@/components/dashboard/CustomToolbar";
 import { getPaginatedCategories, deleteCategoryById } from "@/services/categoryServices"; // Menggunakan service API
 import { useDataGridServer } from "@/lib/hooks/useDataGridServer";
 import theme from "@/theme/theme";
-
-// Hook untuk notifikasi dan konfirmasi
-import { useSnackbar } from "@/components/providers/SnackbarProvider";
-import { useConfirmation } from "@/components/providers/ConfirmationDialogProvider";
+import DialogConfirmation from "@/components/dashboard/DialogConfirmation";
 
 /**
  * Halaman utama untuk menampilkan dan mengelola daftar Kategori menggunakan DataGrid.
  */
 export default function CategoryPage() {
   const router = useRouter();
-  const { showSnackbar } = useSnackbar();
-  const { showConfirmation } = useConfirmation();
 
   // Gunakan custom hook untuk menangani state DataGrid
   const {
@@ -41,24 +36,54 @@ export default function CategoryPage() {
     refreshData,
   } = useDataGridServer(getPaginatedCategories);
 
-  // --- EVENT HANDLERS ---
-  const handleAddItem = () => router.push("/inventaris-sementara/kategori/tambah");
-  const handleEdit = (id) => router.push(`/inventaris-sementara/kategori/edit/${id}`);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
 
-  const handleDelete = (item) => {
-    showConfirmation(
-      "Konfirmasi Hapus",
-      `Apakah Anda yakin ingin menghapus kategori "${item.name}"?`,
-      async () => {
-        try {
-          await deleteCategoryById(item.id);
-          showSnackbar("Kategori berhasil dihapus.", "success");
-          refreshData(); // Muat ulang data setelah berhasil hapus
-        } catch (err) {
-          showSnackbar(err.message || "Gagal menghapus kategori.", "error");
-        }
-      }
-    );
+  // --- BARU: STATE UNTUK SNACKBAR NOTIFIKASI ---
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+
+  const handleOpenDeleteDialog = (id) => {
+    setSelectedId(id);
+    setDialogOpen(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setSelectedId(null);
+    setDialogOpen(false);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedId) return;
+
+    try {
+      await deleteCategoryById(selectedId);
+      setSnackbar({
+        open: true,
+        message: "Kategori berhasil dihapus.",
+        severity: "success",
+      });
+      refreshData();
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: error.message || "Gagal menghapus kategori.",
+        severity: "error",
+      });
+    } finally {
+      handleCloseDeleteDialog();
+    }
+  };
+
+  // --- HANDLER BARU UNTUK SNACKBAR ---
+  const handleCloseSnackbar = (event, reason) => {
+    if (reason === "clickaway") {
+      return;
+    }
+    setSnackbar((prev) => ({ ...prev, open: false }));
   };
 
   // --- COLUMN DEFINITIONS ---
@@ -74,20 +99,19 @@ export default function CategoryPage() {
       renderCell: (params) =>
         params.api.getRowIndexRelativeToVisibleRows(params.id) + 1,
     },
-    { field: "name", headerName: "Nama Kategori", flex: 1 },
+    {
+      field: "name", headerName: "Nama Kategori", flex: 1, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
+    },
     {
       field: "description",
       headerName: "Deskripsi",
       flex: 2,
       renderCell: (params) => params.value || "-",
-    },
-    {
-      field: "productCount",
-      headerName: "Jumlah Produk",
-      type: 'number',
-      width: 150,
-      headerAlign: "center",
-      align: "center",
+      filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
     },
     {
       field: "actions",
@@ -100,12 +124,16 @@ export default function CategoryPage() {
       renderCell: (params) => (
         <Box>
           <Tooltip title="Edit">
-            <IconButton onClick={() => handleEdit(params.id)}>
+            <IconButton onClick={() =>
+              router.push(
+                `/dashboard/inventaris-sementara/kategori/edit/${params.id}`
+              )
+            }>
               <EditIcon color="action" />
             </IconButton>
           </Tooltip>
           <Tooltip title="Hapus">
-            <IconButton onClick={() => handleDelete(params.row)}>
+            <IconButton onClick={() => handleOpenDeleteDialog(params.id)}>
               <DeleteIcon color="error" />
             </IconButton>
           </Tooltip>
@@ -115,12 +143,20 @@ export default function CategoryPage() {
   ];
 
   return (
-    <Box sx={{ height: '80vh', width: '100%' }}>
-        <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
-            <Button variant="contained" onClick={handleAddItem}>
-                + Tambah Kategori
-            </Button>
-        </Box>
+    <Stack >
+      <Divider sx={{ mb: 2 }} />
+      <Box display="flex" justifyContent="end" gap={2}>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={
+            () => router.push("/dashboard/inventaris-sementara/kategori/tambah") // Ubah ke rute tambah aset
+          }
+          sx={{ mb: 2, px: 4 }}
+        >
+          Tambah
+        </Button>
+      </Box>
       <DataGrid
         rows={rows}
         columns={columns}
@@ -141,6 +177,18 @@ export default function CategoryPage() {
         pageSizeOptions={[10, 25, 50]}
         slots={{ toolbar: CustomToolbar }}
         showToolbar
+        slotProps={{
+          loadingOverlay: {
+            variant: "skeleton",
+            noRowsVariant: "skeleton",
+          },
+          toolbar: {
+            title: "Filter dan Export",
+          },
+          columnHeaders: {
+            title: {},
+          },
+        }}
         sx={{
           backgroundColor: theme.palette.background.paper,
           "& .MuiDataGrid-columnHeaderTitle": {
@@ -148,6 +196,28 @@ export default function CategoryPage() {
           },
         }}
       />
-    </Box>
+      <DialogConfirmation
+        dialogOpen={dialogOpen}
+        handleCloseDeleteDialog={handleCloseDeleteDialog}
+        handleConfirmDelete={handleConfirmDelete}
+        title="Konfirmasi Hapus"
+        content="Apakah Anda yakin ingin menghapus Kategori ini? Tindakan ini tidak dapat dibatalkan."
+      />
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Stack>
+
   );
 }

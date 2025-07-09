@@ -26,15 +26,15 @@ export async function GET(request, { params }) {
 
     const { id } = params;
     const category = await getCategoryById(id);
-    
+
     return NextResponse.json({ success: true, data: category });
 
   } catch (error) {
     const status = error.isNotFound ? 404 : error.status || 500;
     const message = error.message || "Terjadi kesalahan pada server.";
-    
+
     console.error(`Error in GET /api/categories/${params.id}:`, error);
-    
+
     return NextResponse.json({ success: false, message }, { status });
   }
 }
@@ -46,23 +46,29 @@ export async function PUT(request, { params }) {
   try {
     await connectToDatabase();
     const session = await getServerSession(authOptions);
-    authorizeRole(session, ['admin', 'manager']); // Hanya role tertentu yang bisa update
+    const validationResponse = authorizeRole(session);
+    if (!validationResponse.success) {
+      return NextResponse.json(
+        { message: validationResponse.messages },
+        { status: validationResponse.status }
+      );
+    }
 
     const { id } = params;
     const data = await request.json();
     const updatedCategory = await updateCategoryById(id, data);
 
-    return NextResponse.json({ 
-        success: true, 
-        message: "Kategori berhasil diperbarui.",
-        data: updatedCategory 
+    return NextResponse.json({
+      success: true,
+      message: "Kategori berhasil diperbarui.",
+      data: updatedCategory
     });
 
   } catch (error) {
-    const status = error.isValidationError ? 400 
-                 : error.isDuplicate ? 409 
-                 : error.isNotFound ? 404
-                 : 500;
+    const status = error.isValidationError ? 400
+      : error.isDuplicate ? 409
+        : error.isNotFound ? 404
+          : 500;
     const message = error.message || "Terjadi kesalahan pada server.";
     const errors = error.isValidationError ? error.errors : undefined;
 
@@ -79,7 +85,13 @@ export async function DELETE(request, { params }) {
   try {
     await connectToDatabase();
     const session = await getServerSession(authOptions);
-    authorizeRole(session, ['admin']); // Hanya admin yang bisa hapus
+    const validationResponse = authorizeRole(session);
+    if (!validationResponse.success) {
+      return NextResponse.json(
+        { message: validationResponse.messages },
+        { status: validationResponse.status }
+      );
+    }
 
     const { id } = params;
     await deleteCategoryById(id);
@@ -87,13 +99,13 @@ export async function DELETE(request, { params }) {
     return NextResponse.json({ success: true, message: 'Kategori berhasil dihapus.' });
 
   } catch (error) {
-    const status = error.isNotFound ? 404 
-                 : error.isConflict ? 409 
-                 : 500;
+    const status = error.isNotFound ? 404
+      : error.isConflict ? 409
+        : 500;
     const message = error.message || "Terjadi kesalahan pada server.";
 
     console.error(`Error in DELETE /api/categories/${params.id}:`, error);
-    
+
     return NextResponse.json({ success: false, message }, { status });
   }
 }

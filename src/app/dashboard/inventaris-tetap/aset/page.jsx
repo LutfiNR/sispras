@@ -32,6 +32,7 @@ import {
 
 // 5. Import custom hook
 import { useDataGridServer } from "@/lib/hooks/useDataGridServer";
+import { getGridStringOperators } from "@mui/x-data-grid";
 
 // ===================================================================================
 
@@ -47,12 +48,11 @@ const processItemRow = (item) => ({
 
 export default function AssetPage() {
   const router = useRouter();
-const searchParams = useSearchParams()
+  const searchParams = useSearchParams()
 
-const initialFilters = {
-    productId: searchParams.get('productId')|| null,
-    locationId: searchParams.get('locationId')|| null,
-    condition: searchParams.get('condition')|| null,
+  const initialFilters = {
+    product: searchParams.get('product') || null,
+    location: searchParams.get('location') || null,
   };
   // 6. Panggil custom hook dengan service Aset
   const {
@@ -136,15 +136,36 @@ const initialFilters = {
         );
       },
     },
-    { field: "serial_number", headerName: "No. Seri", flex: 1},
-    { field: "location", headerName: "Lokasi", flex: 1 },
-    { field: "product", headerName: "Nama Aset", flex: 1 },
-    { field: "brand", headerName: "Merk", flex: 1 },
-    { field: "purchased_year", headerName: "Tahun", flex: 1 },
+    {
+      field: "serial_number", headerName: "No. Seri", flex: 1, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
+    },
+    {
+      field: "location", headerName: "Lokasi", flex: 1, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
+    },
+    {
+      field: "product", headerName: "Nama Aset", flex: 1, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
+    },
+    {
+      field: "brand", headerName: "Merk", flex: 1, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
+    },
+    {
+      field: "purchased_year", headerName: "Tahun", flex: 1, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
+    },
     {
       field: "estimated_price",
       headerName: "Harga",
       flex: 1,
+      filterable: false,
       type: "number", // Penting untuk sorting numerik
       align: "right", // Rata kanan untuk angka/mata uang
       headerAlign: "right",
@@ -165,7 +186,9 @@ const initialFilters = {
     {
       field: "condition",
       headerName: "Kondisi",
-      width: 120,
+      width: 120, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
       renderCell: (params) => {
         const color =
           params.value === "Baik"
@@ -225,7 +248,17 @@ const initialFilters = {
   return (
     <Stack>
       <Divider sx={{ mb: 2 }} />
-      <Box display="flex" justifyContent="end">
+      <Box display="flex" justifyContent="end" gap={2}>
+        <Button
+          variant="outlined"
+          color="primary"
+          onClick={
+            () => router.replace("/dashboard/inventaris-tetap/aset?page=1&limit=10&sortBy=createdAt&order=desc") // Ubah ke rute tambah aset
+          }
+          sx={{ mb: 2, px: 4 }}
+        >
+          Tampilkan Semua Aset
+        </Button>
         <Button
           variant="contained"
           color="primary"

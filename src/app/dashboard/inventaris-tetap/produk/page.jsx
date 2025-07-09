@@ -108,19 +108,35 @@ export default function ProductPage() {
       width: 65,
       headerAlign: "center",
       filterable: false,
-      sortable:false,
+      sortable: false,
       renderCell: (params) => {
-        return(
+        return (
           <Box display="flex" justifyContent="center" alignItems="center">
             {params.api.getRowIndexRelativeToVisibleRows(params.id) + 1}
           </Box>
         )
       },
     },
-    { field: "product_code", headerName: "Kode Produk", width:150 },
-    { field: "name", headerName: "Nama Produk", flex:1 },
-    { field: "brand", headerName: "Merk", flex:1 },
-    { field: "measurement_unit", headerName: "Satuan",width:150 },
+    {
+      field: "product_code", headerName: "Kode Produk", width: 150, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
+    },
+    {
+      field: "name", headerName: "Nama Produk", flex: 1, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
+    },
+    {
+      field: "brand", headerName: "Merk", flex: 1, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
+    },
+    {
+      field: "measurement_unit", headerName: "Satuan", width: 150, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
+    },
     {
       field: "actions",
       headerName: "Aksi",
@@ -163,7 +179,7 @@ export default function ProductPage() {
 
   return (
     <Stack>
-      <Divider sx={{mb:2}}/>
+      <Divider sx={{ mb: 2 }} />
       <Box display="flex" justifyContent="end">
         <Button
           variant="contained"

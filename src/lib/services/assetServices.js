@@ -98,9 +98,7 @@ export async function getPaginatedAssets({
             : { 'location.name': { $regex: filterValue, $options: 'i' } };
           break;
         case "brand":
-          condition = isObjectId
-            ? { 'product.brand._id': new mongoose.Types.ObjectId(filterValue) }
-            : { 'product.brand.name': { $regex: filterValue, $options: 'i' } };
+            condition = {'product.brand.name': { $regex: filterValue, $options: 'i' }}
           break;
         default:
           // Untuk field lain (seperti condition, status), gunakan pencarian teks biasa.
@@ -339,11 +337,10 @@ export async function getAssetAggregateSummary({
       const filterValue = columnFilters[key];
       let fieldPath = key;
       switch (key) {
-        case 'product': fieldPath = 'productDetails.name'; break;
-        case 'location': fieldPath = 'locationDetails.name'; break;
-        case 'brand': fieldPath = 'brandDetails.name'; break;
-        case 'condition': case 'purchased_year': case 'serial_number':
-          fieldPath = key; break;
+        case 'productName': fieldPath = 'productDetails.name'; break;
+        case 'locationName': fieldPath = 'locationDetails.name'; break;
+        case 'brandName': fieldPath = 'brandDetails.name'; break;
+        // Filter untuk field yang tidak berubah nama
         case 'estimated_price':
             const price = parseFloat(filterValue);
             if (!isNaN(price)) { matchConditions.push({ [key]: price }); continue; }
@@ -369,7 +366,6 @@ export async function getAssetAggregateSummary({
         locationName: "$locationDetails.name",
         building: "$locationDetails.building",
         floor: "$locationDetails.floor",
-        condition: "$condition",
       },
       // Ambil nilai dari field lain dari dokumen pertama dalam grup
       productId: { $first: "$productDetails._id" },
@@ -394,7 +390,6 @@ export async function getAssetAggregateSummary({
             productName: "$_id.productName", 
             brandName: "$_id.brandName",
             locationName: { $concat: [ "Gd. ", "$_id.building", " - Lt. ", "$_id.floor", " - R. ", "$_id.locationName" ] },
-            condition: "$_id.condition", 
             purchased_year: "$purchased_year",
             estimated_price: "$estimated_price",
             jumlah: "$jumlah"

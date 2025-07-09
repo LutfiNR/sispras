@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/auth';
 import { authorizeRole } from '@/lib/services/roleValidation';
-import { getAssetAggregateSummary } from '@/lib/services/assetServices'; 
+import { getAssetAggregateSummary } from '@/lib/services/assetServices';
 import connectToDatabase from '@/database/database';
 
 /**
@@ -24,14 +24,13 @@ export async function GET(request) {
     // Mengumpulkan semua filter dari URL
     const filters = {};
     const allowedFilters = [
-        'q', 'product', 'brand', 'location', 'condition', 
-        'status', 'purchased_year', 'serial_number', 'estimated_price'
+      'q', 'productName', 'brandName', 'locationName','estimated_price'
     ];
 
     allowedFilters.forEach(key => {
-        if (searchParams.has(key)) {
-            filters[key] = searchParams.get(key);
-        }
+      if (searchParams.has(key)) {
+        filters[key] = searchParams.get(key);
+      }
     });
 
     // Panggil service dengan semua parameter yang relevan

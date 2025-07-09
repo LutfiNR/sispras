@@ -61,11 +61,6 @@ export async function getPaginatedCategories({ page = 1, limit = 10, sortBy = 'n
         as: 'products'
       }
     },
-    {
-      $addFields: {
-        productCount: { $size: '$products' } // Hitung jumlah elemen dalam array 'products'
-      }
-    }
   );
 
   // --- Tahap 3: Paginasi dan Penghitungan Total menggunakan $facet ---
@@ -119,7 +114,6 @@ export async function createCategory(data) {
     throw validationError;
   }
 
-  await connectToDatabase();
   try {
     const newCategory = await Category.create(validation.data);
     return newCategory;

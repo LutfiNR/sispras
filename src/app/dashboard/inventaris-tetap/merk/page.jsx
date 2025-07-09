@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 // 2. Import komponen dari MUI
 import { Button, Stack, IconButton, Box, Snackbar, Alert, Divider } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
+import { DataGrid, getGridStringOperators } from "@mui/x-data-grid";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
@@ -101,15 +101,23 @@ export default function BrandPage() {
       headerAlign: "center",
       filterable: false,
       renderCell: (params) => {
-        return(
+        return (
           <Box display="flex" justifyContent="center" alignItems="center">
             {params.api.getRowIndexRelativeToVisibleRows(params.id) + 1}
           </Box>
         )
       },
     },
-    { field: "name", headerName: "Nama Merk", flex:1 },
-    { field: "description", headerName: "Deskripsi", flex: 1 },
+    {
+      field: "name", headerName: "Nama Merk", flex: 1, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
+    },
+    {
+      field: "description", headerName: "Deskripsi", flex: 1, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
+    },
     {
       field: "actions",
       headerName: "Aksi",
@@ -152,7 +160,7 @@ export default function BrandPage() {
 
   return (
     <Stack>
-      <Divider sx={{mb:2}}/>
+      <Divider sx={{ mb: 2 }} />
       <Box display="flex" justifyContent="end">
         <Button
           variant="contained"
