@@ -1,3 +1,4 @@
+
 /**
  * @file Layanan terpusat untuk mengelola semua logika bisnis terkait Aset.
  */
@@ -19,20 +20,19 @@ const assetBulkSchema = z.object({
   attributes: z.record(z.any()).optional(),
 });
 
-// Skema untuk memperbarui aset. Hanya field yang boleh diubah.
 const assetUpdateSchema = z.object({
   condition: z.enum(["Baik", "Rusak", "Kurang Baik"]).optional(),
-  purchase_date: z.coerce.date().optional(),
+  purchased_year: z.string().optional(), // Sesuai model Mongoose Anda
   estimated_price: z.preprocess(
-    (val) => (val === "" ? undefined : Number(val)),
-    z.number().min(0).optional()
+    // Mengubah string kosong menjadi undefined agar validasi number tidak gagal
+    (val) => (val === "" || val == null ? undefined : Number(val)),
+    z.number().min(0, "Harga harus angka positif.").optional()
   ),
   attributes: z.record(z.any()).optional(),
 });
 
 /**
  * BE Service: Mengambil daftar aset individual dengan paginasi, filter, dan sorting.
- * Menggunakan Aggregation Pipeline untuk memungkinkan pencarian pada data ter-populate.
  * @param {object} options - Opsi query
  * @returns {Promise<object>} - Hasil yang siap dikirim ke API Route.
  */
@@ -48,50 +48,26 @@ export async function getPaginatedAssets({
   const skip = (pageNum - 1) * limitNum;
   const sortOptions = { [sortBy]: order === "desc" ? -1 : 1 };
 
-  // --- Mulai Aggregation Pipeline ---
   const pipeline = [];
 
-  // --- Tahap 1: Populasi Data (Menggunakan $lookup) ---
-  // Menggabungkan data dari koleksi lain
+  // Tahap 1: Populasi Data (Lookup)
   pipeline.push(
-    {
-      $lookup: {
-        from: "products",
-        localField: "product",
-        foreignField: "_id",
-        as: "product",
-      },
-    },
+    { $lookup: { from: "products", localField: "product", foreignField: "_id", as: "product" } },
     { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
-    {
-      $lookup: {
-        from: "locations",
-        localField: "location",
-        foreignField: "_id",
-        as: "location",
-      },
-    },
+    { $lookup: { from: "locations", localField: "location", foreignField: "_id", as: "location" } },
     { $unwind: { path: "$location", preserveNullAndEmptyArrays: true } },
-    {
-      $lookup: {
-        from: "brands",
-        localField: "product.brand",
-        foreignField: "_id",
-        as: "product.brand",
-      },
-    },
+    { $lookup: { from: "brands", localField: "product.brand", foreignField: "_id", as: "product.brand" } },
     { $unwind: { path: "$product.brand", preserveNullAndEmptyArrays: true } }
   );
 
-  // --- Tahap 2: Logika Filter Dinamis (Menggunakan $match) ---
+  // Tahap 2: Logika Filter Dinamis
   const matchConditions = [];
   const { q, ...columnFilters } = filters;
 
-  // --- BAGIAN A: Filter pencarian cepat ('q') untuk PENCARIAN GLOBAL ---
   if (q) {
     matchConditions.push({
       $or: [
-        { serialNumber: { $regex: q, $options: "i" } },
+        { serial_number: { $regex: q, $options: "i" } },
         { "product.name": { $regex: q, $options: "i" } },
         { "location.name": { $regex: q, $options: "i" } },
         { "product.brand.name": { $regex: q, $options: "i" } },
@@ -101,38 +77,45 @@ export async function getPaginatedAssets({
     });
   }
 
-  // --- BAGIAN B: Filter untuk PENCARIAN PER KOLOM SPESIFIK ---
+  // Logika Filter Kolom yang Cerdas
   for (const key in columnFilters) {
     if (columnFilters[key]) {
       const filterValue = columnFilters[key];
-      let fieldPath = key;
+      let condition;
 
-      // Petakan 'key' dari URL ke field path yang benar di dalam agregasi
+      // Cek apakah nilai filter adalah ObjectId yang valid
+      const isObjectId = mongoose.Types.ObjectId.isValid(filterValue);
+
       switch (key) {
         case "product":
-          fieldPath = "product.name";
+          condition = isObjectId
+            ? { 'product._id': new mongoose.Types.ObjectId(filterValue) }
+            : { 'product.name': { $regex: filterValue, $options: 'i' } };
           break;
         case "location":
-          fieldPath = "location.name";
+          condition = isObjectId
+            ? { 'location._id': new mongoose.Types.ObjectId(filterValue) }
+            : { 'location.name': { $regex: filterValue, $options: 'i' } };
           break;
         case "brand":
-          fieldPath = "product.brand.name";
+          condition = isObjectId
+            ? { 'product.brand._id': new mongoose.Types.ObjectId(filterValue) }
+            : { 'product.brand.name': { $regex: filterValue, $options: 'i' } };
           break;
-        // untuk key lain seperti 'status', 'condition', 'serialNumber', fieldPath sudah benar
+        default:
+          // Untuk field lain (seperti condition, status), gunakan pencarian teks biasa.
+          condition = { [key]: { $regex: filterValue, $options: 'i' } };
+          break;
       }
-
-      matchConditions.push({
-        [fieldPath]: { $regex: filterValue, $options: "i" },
-      });
+      matchConditions.push(condition);
     }
   }
 
-  // Jika ada kondisi filter, gabungkan dengan $and dan tambahkan tahap $match
   if (matchConditions.length > 0) {
     pipeline.push({ $match: { $and: matchConditions } });
   }
 
-  // --- Tahap 3: Paginasi dan Penghitungan Total (Menggunakan $facet) ---
+  // Tahap 3: Paginasi dan Penghitungan Total
   pipeline.push({
     $facet: {
       data: [{ $sort: sortOptions }, { $skip: skip }, { $limit: limitNum }],
@@ -140,13 +123,10 @@ export async function getPaginatedAssets({
     },
   });
 
-  // --- Eksekusi Pipeline ---
   const result = await Asset.aggregate(pipeline);
-
   const data = result[0]?.data || [];
   const totalItems = result[0]?.metadata[0]?.totalItems || 0;
 
-  // --- Struktur Respons Akhir ---
   return {
     data,
     pagination: {
@@ -206,14 +186,14 @@ export async function createAssets(data) {
 
   // Hasil agregasi adalah array, misal: [{ total: 5 }]. Jika kosong, berarti 0.
   const assetCountInLocation = aggregationResult[0]?.total || 0;
-  
-  
+
+
   const assetsToCreate = [];
 
   // Persiapkan setiap dokumen aset baru dalam satu array
   for (let i = 0; i < quantity; i++) {
     const nextSequence = assetCountInLocation + i + 1;
-    
+
     // Generate nomor seri unik untuk setiap aset
     const newSerialNumber = await generateSerialNumber(productId, locationId, nextSequence);
 
@@ -250,7 +230,7 @@ export async function getAssetById(id) {
   const asset = await Asset.findById(id)
     .populate({
       path: "product",
-      select: "name brand",
+      select: "name brand measurement_unit",
       populate: { path: "brand", select: "name" },
     })
     .populate({ path: "location", select: "name floor building" })
@@ -269,8 +249,8 @@ export async function getAssetById(id) {
  * BE Service: Memperbarui satu aset berdasarkan ID.
  */
 export async function updateAssetById(id, data) {
-  // Validasi data yang masuk menggunakan Zod
-  const validation = assetSchema.partial().safeParse(data);
+
+  const validation = assetUpdateSchema.safeParse(data);
   if (!validation.success) {
     const validationError = new Error("Input tidak valid.");
     validationError.isValidationError = true;
@@ -278,19 +258,22 @@ export async function updateAssetById(id, data) {
     throw validationError;
   }
 
-  const updatedAsset = await Asset.findByIdAndUpdate(id, validation.data, {
-    new: true,
-    runValidators: true,
-  }).lean();
+  // Jika frontend mengirim field lain (seperti product atau location),
+  // `validation.data` akan secara otomatis menghapusnya, sehingga aman.
+  const updatedAsset = await Asset.findByIdAndUpdate(
+    id,
+    validation.data, // Hanya data yang lolos validasi yang diupdate
+    { new: true, runValidators: true }
+  ).lean();
 
   if (!updatedAsset) {
     const notFoundError = new Error("Aset tidak ditemukan untuk diperbarui.");
     notFoundError.isNotFound = true;
     throw notFoundError;
   }
-
   return updatedAsset;
 }
+
 
 /**
  * BE Service: Menghapus satu aset berdasarkan ID.
@@ -305,4 +288,142 @@ export async function deleteAssetById(id) {
   }
 
   // Tidak ada yang perlu dikembalikan jika sukses
+}
+
+/**
+ * BE Service: Menjalankan pipeline agregasi untuk meringkas data aset, dengan filter dan paginasi.
+ * @param {object} options - Opsi query termasuk filters, page, limit, sortBy, order.
+ * @returns {Promise<object>} - Hasil data aset yang telah diagregasi beserta info paginasi.
+ */
+export async function getAssetAggregateSummary({
+  page = 1,
+  limit = 10,
+  sortBy = "productName", // Default sort berdasarkan nama produk
+  order = "asc",
+  filters = {},
+}) {
+  // --- PERSIAPAN PAGINASI ---
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = parseInt(limit, 10) || 10;
+  const skip = (pageNum - 1) * limitNum;
+  const sortOptions = { [sortBy]: order === "desc" ? -1 : 1 };
+
+  const pipeline = [];
+
+  // --- Tahap 1: Lakukan semua join/lookup terlebih dahulu ---
+  pipeline.push(
+    { $lookup: { from: 'products', localField: 'product', foreignField: '_id', as: 'productDetails' } },
+    { $unwind: { path: "$productDetails", preserveNullAndEmptyArrays: true } },
+    { $lookup: { from: 'locations', localField: 'location', foreignField: '_id', as: 'locationDetails' } },
+    { $unwind: { path: "$locationDetails", preserveNullAndEmptyArrays: true } },
+    { $lookup: { from: 'brands', localField: 'productDetails.brand', foreignField: '_id', as: 'brandDetails' } },
+    { $unwind: { path: "$brandDetails", preserveNullAndEmptyArrays: true } }
+  );
+
+  // --- Tahap 2: Bangun kondisi filter dinamis ---
+  const matchConditions = [];
+  const { q, ...columnFilters } = filters;
+
+  if (q) {
+    matchConditions.push({
+      $or: [
+        { "productDetails.name": { $regex: q, $options: "i" } },
+        { "locationDetails.name": { $regex: q, $options: "i" } },
+        { "brandDetails.name": { $regex: q, $options: "i" } },
+      ],
+    });
+  }
+
+  for (const key in columnFilters) {
+    if (columnFilters[key]) {
+      const filterValue = columnFilters[key];
+      let fieldPath = key;
+      switch (key) {
+        case 'product': fieldPath = 'productDetails.name'; break;
+        case 'location': fieldPath = 'locationDetails.name'; break;
+        case 'brand': fieldPath = 'brandDetails.name'; break;
+        case 'condition': case 'purchased_year': case 'serial_number':
+          fieldPath = key; break;
+        case 'estimated_price':
+            const price = parseFloat(filterValue);
+            if (!isNaN(price)) { matchConditions.push({ [key]: price }); continue; }
+            break;
+      }
+      if (key !== 'estimated_price') {
+        matchConditions.push({ [fieldPath]: { $regex: filterValue, $options: "i" } });
+      }
+    }
+  }
+
+  if (matchConditions.length > 0) {
+    pipeline.push({ $match: { $and: matchConditions } });
+  }
+
+  // --- Tahap 3: Kelompokkan aset berdasarkan produk, lokasi, dan kondisi ---
+  pipeline.push({
+    $group: {
+      _id: {
+        // Kunci utama pengelompokan
+        productName: "$productDetails.name",
+        brandName: "$brandDetails.name",
+        locationName: "$locationDetails.name",
+        building: "$locationDetails.building",
+        floor: "$locationDetails.floor",
+        condition: "$condition",
+      },
+      // Ambil nilai dari field lain dari dokumen pertama dalam grup
+      productId: { $first: "$productDetails._id" },
+      locationId: { $first: "$locationDetails._id" },
+      purchased_year: { $first: "$purchased_year" },
+      estimated_price: { $first: "$estimated_price" },
+      // Hitung jumlah aset dalam grup ini
+      jumlah: { $sum: 1 } 
+    }
+  });
+
+  // --- Tahap 4: Gunakan $facet untuk Paginasi & Penghitungan Total ---
+  pipeline.push({
+    $facet: {
+      // Sub-pipeline untuk data halaman ini
+      data: [
+        // Proyeksikan data dari hasil $group ke format yang diinginkan
+        { $project: {
+            _id: 0, 
+            productId: "$productId",
+            locationId: "$locationId",
+            productName: "$_id.productName", 
+            brandName: "$_id.brandName",
+            locationName: { $concat: [ "Gd. ", "$_id.building", " - Lt. ", "$_id.floor", " - R. ", "$_id.locationName" ] },
+            condition: "$_id.condition", 
+            purchased_year: "$purchased_year",
+            estimated_price: "$estimated_price",
+            jumlah: "$jumlah"
+        }},
+        { $sort: sortOptions },
+        { $skip: skip },
+        { $limit: limitNum },
+      ],
+      // Sub-pipeline untuk metadata (hanya menghitung total grup)
+      metadata: [
+        { $count: 'totalItems' },
+      ],
+    },
+  });
+
+  // --- Eksekusi Pipeline ---
+  const result = await Asset.aggregate(pipeline);
+
+  // --- Struktur Respons Akhir ---
+  const data = result[0]?.data || [];
+  const totalItems = result[0]?.metadata[0]?.totalItems || 0;
+
+  return {
+    data,
+    pagination: {
+      totalItems,
+      currentPage: pageNum,
+      totalPages: Math.ceil(totalItems / limitNum),
+      limit: limitNum,
+    },
+  };
 }

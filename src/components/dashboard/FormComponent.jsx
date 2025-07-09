@@ -57,7 +57,8 @@ export default function FormComponent({
       options = [],
       required = false,
       rows = 1,
-      loading
+      loading,
+      disabled = false
     } = fieldConfig;
     const value = formData[name] || "";
     const hasError = !!errors[name];
@@ -74,6 +75,7 @@ export default function FormComponent({
         return (
           <Autocomplete
             // Opsi-opsi yang akan ditampilkan di dropdown
+            disabled={disabled}
             options={options}
             loading={loading}
             // Memberitahu Autocomplete cara mendapatkan label dari setiap objek opsi
@@ -112,6 +114,8 @@ export default function FormComponent({
           <FormControl fullWidth required={required} error={hasError}>
             <InputLabel>{label}</InputLabel>
             <Select
+              disabled={disabled}
+
               name={name}
               value={value}
               label={label}
@@ -133,6 +137,8 @@ export default function FormComponent({
       default:
         return (
           <TextField
+            disabled={disabled}
+
             fullWidth
             required={required}
             type={type === "number" ? "number" : "text"}
@@ -150,6 +156,8 @@ export default function FormComponent({
       case "date":
         return (
           <DatePicker
+            disabled={disabled}
+
             label={label}
             value={value ? new Date(value) : null} // Pastikan value adalah objek Date atau null
             onChange={(newValue) => handleDateChange(name, newValue)}

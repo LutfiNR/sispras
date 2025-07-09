@@ -21,7 +21,9 @@ export async function GET(request) {
     const filters = {
       serial_number: searchParams.get('serial_number'),
       product: searchParams.get('product'),
+      productId: searchParams.get('productId'),
       location: searchParams.get('location'),
+      locationId: searchParams.get('locationId'),
       condition: searchParams.get('condition'),
       purchased_year: searchParams.get('purchased_year'),
       estimated_price: searchParams.get('estimated_price'),

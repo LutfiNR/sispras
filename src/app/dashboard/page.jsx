@@ -1,132 +1,129 @@
 "use client";
+
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-import { Stack } from "@mui/material";
-
-import { DataGrid } from "@mui/x-data-grid";
-
+// components
 import SummaryCard from "@/components/dashboard/SummaryCard";
-import CustomToolbar from "@/components/dashboard/CustomToolbar";
-import theme from "@/theme/theme";
+import LowStockList from "@/components/dashboard/LowStockList";
 
-const columns = [
-  { field: "id", headerName: "ID", width: 90 },
-  {
-    field: "firstName",
-    headerName: "First name",
-    width: 150,
-    editable: true,
-  },
-  {
-    field: "lastName",
-    headerName: "Last name",
-    width: 150,
-    editable: true,
-  },
-  {
-    field: "age",
-    headerName: "Age",
-    type: "number",
-    width: 110,
-    editable: true,
-  },
-  {
-    field: "fullName",
-    headerName: "Full name",
-    description: "This column has a value getter and is not sortable.",
-    sortable: false,
-    width: 160,
-    valueGetter: (value, row) => `${row.firstName || ""} ${row.lastName || ""}`,
-  },
-];
+// material-ui
+import { Box, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Alert, Chip } from "@mui/material";
 
-const rows = [
-  { id: 1, lastName: "Snow", firstName: "Jon", age: 14 },
-  { id: 2, lastName: "Lannister", firstName: "Cersei", age: 31 },
-  { id: 3, lastName: "Lannister", firstName: "Jaime", age: 31 },
-  { id: 4, lastName: "Stark", firstName: "Arya", age: 11 },
-  { id: 5, lastName: "Targaryen", firstName: "Daenerys", age: null },
-  { id: 6, lastName: "Melisandre", firstName: null, age: 150 },
-  { id: 7, lastName: "Clifford", firstName: "Ferrara", age: 44 },
-  { id: 8, lastName: "Frances", firstName: "Rossini", age: 36 },
-  { id: 9, lastName: "Roxie", firstName: "Harvey", age: 65 },
-];
+// Frontend Services (asumsi ada file service baru untuk dashboard)
+import { getSummary, getLowStock, getRecentLogs } from "@/services/dashboardServices";
 
-export default function DashboarPage() {
+// Komponen Tabel Transaksi yang bisa digunakan kembali
+const TransactionTable = ({ title, headers, data, renderRow }) => (
+  <Box>
+    <Typography variant="h6" sx={{ mt: 4, mb: 2, fontWeight: 500 }}>
+      {title}
+    </Typography>
+    <TableContainer component={Paper} variant="outlined">
+      <Table>
+        <TableHead>
+          <TableRow sx={{ "& .MuiTableCell-head": { fontWeight: "bold" } }}>
+            {headers.map((header) => (
+              <TableCell key={header}>{header}</TableCell>
+            ))}
+          </TableRow>
+        </TableHead>
+        <TableBody>{data?.map(renderRow)}</TableBody>
+      </Table>
+    </TableContainer>
+  </Box>
+);
+
+// --- KOMPONEN UTAMA HALAMAN DASHBOARD ---
+export default function DashboardPage() {
   const router = useRouter();
 
+  const [dashboardData, setDashboardData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchAllData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        // Panggil semua API dashboard secara paralel untuk efisiensi
+        const [summaryRes, lowStockRes, recentLogsRes] = await Promise.all([
+          getSummary(),
+          getLowStock(),
+          getRecentLogs(),
+        ]);
+
+        setDashboardData({
+          summary: summaryRes.data,
+          lowStock: lowStockRes.data,
+          recentLogs: recentLogsRes.data,
+        });
+
+      } catch (err) {
+        console.error("Gagal memuat data dashboard:", err);
+        setError("Gagal memuat data untuk dashboard. Silakan coba lagi nanti.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchAllData();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error">{error}</Alert>
+    );
+  }
+
   return (
-    <Stack direction="column" spacing={6}>
-      <Stack direction="row" spacing={4}>
+    <>
+      <Box display="flex" flexDirection={{ xs: 'column', md: 'row' }} width={"100%"} gap={4}>
         <SummaryCard
           title="Total Inventaris Tetap"
-          value="0"
+          value={dashboardData.summary.totalAssets}
           unit="Aset"
-          onClick={() => router.push("/inventaris/aset")}
+          onClick={() => router.push('/dashboard/inventaris-tetap/aset')}
         />
         <SummaryCard
           title="Total Stok Habis Pakai"
-          value="0"
+          value={dashboardData.summary.totalTempStock}
           unit="Item"
-          onClick={() => router.push("/inventaris-habis-pakai/stok")}
+          onClick={() => router.push('/dashboard/inventaris-sementara/stok')}
         />
-        <SummaryCard
-          title="Total Stok Habis Pakai"
-          value="0"
-          unit="Item"
-          onClick={() => router.push("/inventaris-habis-pakai/stok")}
-        />
-      </Stack>
-      <DataGrid
-        rows={rows}
-        columns={columns}
-        // loading={loading}
-        slots={{ toolbar: CustomToolbar }}
-        showToolbar
-        slotProps={{
-          loadingOverlay: {
-            variant: "skeleton",
-            noRowsVariant: "skeleton",
-          },
-          toolbar: {
-            title: "Stok Barang Menipis",
-          },
-          columnHeaders: {
-            title: {},
-          },
-        }}
-        sx={{
-          backgroundColor: theme.palette.background.paper,
-          "& .MuiDataGrid-columnHeaderTitle": {
-            fontWeight: 600,
-          },
-        }}
+      </Box>
+
+      <LowStockList items={dashboardData.lowStock} />
+
+      <TransactionTable
+        title="5 Aktivitas Terbaru Barang Habis Pakai"
+        headers={["Tanggal", "Nama Barang", "Jenis", "Jumlah", "Dicatat Oleh", "Pengambil/Penambah"]}
+        data={dashboardData.recentLogs}
+        renderRow={(row, index) => (
+          <TableRow key={row._id || index}>
+            <TableCell>{new Date(row.createdAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</TableCell>
+            <TableCell>{row.stock_item?.product?.name || 'N/A'}</TableCell>
+            <TableCell>
+              <Chip
+                label={row.type === 'penambahan' ? 'Masuk' : 'Keluar'}
+                color={row.type === 'penambahan' ? 'success' : 'warning'}
+                size="small"
+                variant="outlined"
+              />
+            </TableCell>
+            <TableCell>{`${row.quantity_changed} ${row.stock_item?.unit || ''}`}</TableCell>
+            <TableCell>{row.user?.name || 'Sistem'}</TableCell>
+            <TableCell>{row.person_name}</TableCell>
+          </TableRow>
+        )}
       />
-      <DataGrid
-        rows={rows}
-        columns={columns}
-        // loading={loading}
-        slots={{ toolbar: CustomToolbar }}
-        showToolbar
-        slotProps={{
-          loadingOverlay: {
-            variant: "skeleton",
-            noRowsVariant: "skeleton",
-          },
-          toolbar: {
-            title: "Riwayat Barang Masuk dan Keluar",
-          },
-          columnHeaders: {
-            title: {},
-          },
-        }}
-        sx={{
-          backgroundColor: theme.palette.background.paper,
-          "& .MuiDataGrid-columnHeaderTitle": {
-            fontWeight: 600,
-          },
-        }}
-      />
-    </Stack>
+    </>
   );
 }

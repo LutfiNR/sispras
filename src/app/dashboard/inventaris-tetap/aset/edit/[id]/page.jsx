@@ -19,9 +19,9 @@ export default function EditAssetPage() {
   // State untuk data yang bisa diedit
   const [formData, setFormData] = useState({
     condition: "Baik",
-    status: "Tersedia",
     purchased_year: "", // Sesuai skema Mongoose Anda
     estimated_price: "",
+    attributes:{}
   });
   
   // State terpisah untuk data yang hanya ditampilkan (read-only)
@@ -51,9 +51,9 @@ export default function EditAssetPage() {
         
         setFormData({
           condition: asset.condition,
-          status: asset.status,
           purchased_year: asset.purchased_year || "",
           estimated_price: asset.estimated_price || "",
+          attributes:{}
         });
 
         // Inisialisasi atribut dari data yang ada
@@ -81,25 +81,13 @@ export default function EditAssetPage() {
     { name: "productName", label: "Produk", type: "text", disabled: true },
     { name: "locationName", label: "Lokasi", type: "text", disabled: true },
     {
-      name: "condition",
+    name: "condition",
       label: "Kondisi",
       type: "select",
       options: [
         { value: "Baik", label: "Baik" },
         { value: "Kurang Baik", label: "Kurang Baik" },
         { value: "Rusak", label: "Rusak" },
-      ],
-      required: true,
-    },
-    {
-      name: "status",
-      label: "Status",
-      type: "select",
-      options: [
-        { value: "Tersedia", label: "Tersedia" },
-        { value: "Digunakan", label: "Digunakan" },
-        { value: "Perbaikan", label: "Dalam Perbaikan" },
-        { value: "Dihapuskan", label: "Dihapuskan" },
       ],
       required: true,
     },

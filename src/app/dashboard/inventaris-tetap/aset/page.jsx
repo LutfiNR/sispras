@@ -2,7 +2,7 @@
 
 // 1. Import hook React dan Next.js
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 // 2. Import komponen dari MUI
 import {
@@ -47,7 +47,13 @@ const processItemRow = (item) => ({
 
 export default function AssetPage() {
   const router = useRouter();
+const searchParams = useSearchParams()
 
+const initialFilters = {
+    productId: searchParams.get('productId')|| null,
+    locationId: searchParams.get('locationId')|| null,
+    condition: searchParams.get('condition')|| null,
+  };
   // 6. Panggil custom hook dengan service Aset
   const {
     rows,
@@ -58,7 +64,7 @@ export default function AssetPage() {
     filterModel,
     setFilterModel,
     refreshData,
-  } = useDataGridServer(getPaginatedAssets, processItemRow);
+  } = useDataGridServer(getPaginatedAssets, processItemRow, initialFilters);
 
   // --- State untuk dialog konfirmasi ---
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -130,7 +136,8 @@ export default function AssetPage() {
         );
       },
     },
-    { field: "serial_number", headerName: "No. Seri", width: 150 },
+    { field: "serial_number", headerName: "No. Seri", flex: 1},
+    { field: "location", headerName: "Lokasi", flex: 1 },
     { field: "product", headerName: "Nama Aset", flex: 1 },
     { field: "brand", headerName: "Merk", flex: 1 },
     { field: "purchased_year", headerName: "Tahun", flex: 1 },
@@ -155,7 +162,6 @@ export default function AssetPage() {
         }).format(value);
       },
     },
-    { field: "location", headerName: "Lokasi", flex: 1 },
     {
       field: "condition",
       headerName: "Kondisi",

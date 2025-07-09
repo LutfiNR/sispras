@@ -1,100 +1,148 @@
 "use client";
+
+import React from "react";
 import { useRouter } from "next/navigation";
 
-import { Stack } from "@mui/material";
-
+// Komponen MUI
+import { Box, Chip, Tooltip, IconButton } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
+import InfoIcon from '@mui/icons-material/Info';
 
-import SummaryCard from "@/components/dashboard/SummaryCard";
+// Komponen Kustom & Service
 import CustomToolbar from "@/components/dashboard/CustomToolbar";
+import { getAssetAggregateSummary } from "@/services/assetServices"; // Menggunakan service baru
+import { useDataGridServer } from "@/lib/hooks/useDataGridServer";
 import theme from "@/theme/theme";
 
-const columns = [
-  { field: "id", headerName: "ID", width: 90 },
-  {
-    field: "firstName",
-    headerName: "First name",
-    width: 150,
-    editable: true,
-  },
-  {
-    field: "lastName",
-    headerName: "Last name",
-    width: 150,
-    editable: true,
-  },
-  {
-    field: "age",
-    headerName: "Age",
-    type: "number",
-    width: 110,
-    editable: true,
-  },
-  {
-    field: "fullName",
-    headerName: "Full name",
-    description: "This column has a value getter and is not sortable.",
-    sortable: false,
-    width: 160,
-    valueGetter: (value, row) => `${row.firstName || ""} ${row.lastName || ""}`,
-  },
-];
+// Fungsi untuk memproses baris data, menambahkan ID unik untuk DataGrid
+const processRow = (row, index) => ({
+  ...row,
+  // Buat ID unik dari kombinasi field, karena hasil agregasi tidak punya _id
+  id: `${row.productName}-${row.brandName}-${row.locationName}-${row.condition}-${index}`,
+});
 
-const rows = [
-  { id: 1, lastName: "Snow", firstName: "Jon", age: 14 },
-  { id: 2, lastName: "Lannister", firstName: "Cersei", age: 31 },
-  { id: 3, lastName: "Lannister", firstName: "Jaime", age: 31 },
-  { id: 4, lastName: "Stark", firstName: "Arya", age: 11 },
-  { id: 5, lastName: "Targaryen", firstName: "Daenerys", age: null },
-  { id: 6, lastName: "Melisandre", firstName: null, age: 150 },
-  { id: 7, lastName: "Clifford", firstName: "Ferrara", age: 44 },
-  { id: 8, lastName: "Frances", firstName: "Rossini", age: 36 },
-  { id: 9, lastName: "Roxie", firstName: "Harvey", age: 65 },
-];
-
-export default function DashboarPage() {
+/**
+ * Halaman untuk menampilkan laporan agregat Inventaris Tetap.
+ * Data diambil dan dipaginasi dari backend.
+ */
+export default function AssetAggregatePage() {
   const router = useRouter();
 
+  // Gunakan custom hook untuk menangani state DataGrid (pagination, filter, sort, dll.)
+  const {
+    rows,
+    loading,
+    rowCount,
+    paginationModel,
+    setPaginationModel,
+    filterModel,
+    setFilterModel,
+    sortModel,
+    setSortModel,
+  } = useDataGridServer(getAssetAggregateSummary, processRow);
+
+  // --- Handler untuk tombol detail ---
+  const handleShowDetail = (row) => {
+    // Buat query string dari ID produk, lokasi, dan kondisi
+    const queryParams = new URLSearchParams({
+      product: row.productId,
+      location: row.locationId,
+      condition: row.condition,
+    }).toString();
+
+    // Arahkan ke halaman daftar aset individual dengan filter yang sudah diterapkan
+    router.push(`/dashboard/inventaris-tetap/aset?${queryParams}`);
+  };
+
+  // Definisi kolom untuk DataGrid
+  const columns = [
+    {
+      field: "no",
+      headerName: "No.",
+      width: 65,
+      headerAlign: "center",
+      align: "center",
+      filterable: false,
+      sortable: false,
+      renderCell: (params) => 
+         params.api.getRowIndexRelativeToVisibleRows(params.id) + 1,
+    },
+    { field: "productName", headerName: "Nama Aset", flex: 1 },
+    { field: "brandName", headerName: "Merk", flex: 1  },
+    { field: "locationName", headerName: "Lokasi", flex: 1 },
+    {
+      field: "condition",
+      headerName: "Kondisi",
+      width: 120,
+      renderCell: (params) => {
+        const color = params.value === 'Baik' ? 'success' : params.value === 'Rusak' ? 'error' : 'warning';
+        return <Chip label={params.value} color={color} size="small" sx={{width: '80px'}}/>
+      }
+    },
+    {
+      field: "jumlah",
+      headerName: "Jumlah",
+      type: 'number',
+      width: 65,
+      headerAlign: "center",
+      align: "center",
+    },
+    {
+      field: "estimated_price",
+      headerName: "Harga Satuan",
+      flex: 1, 
+      type: 'number',
+      align: 'right',
+      headerAlign: 'right',
+      valueFormatter: (value) => {
+        if (value == null || isNaN(value)) return '';
+        return new Intl.NumberFormat('id-ID', {
+          style: 'currency',
+          currency: 'IDR',
+          minimumFractionDigits: 0,
+        }).format(value);
+      },
+    },
+    {
+      field: "actions",
+      headerName: "Detail",
+      headerAlign: "center",
+      align: "center",
+      width: 65,
+      filterable: false,
+      sortable: false,
+      renderCell: (params) => (
+        <Tooltip title="Lihat Detail Aset">
+          <IconButton onClick={() => console.log(params.row)}>
+            <InfoIcon color="info" />
+          </IconButton>
+        </Tooltip>
+      ),
+    },
+  ];
+
   return (
-    <Stack direction="column" spacing={6}>
-      <Stack direction="row" spacing={4}>
-        <SummaryCard
-          title="Total Inventaris Tetap"
-          value="0"
-          unit="Aset"
-          onClick={() => router.push("/inventaris/aset")}
-        />
-        <SummaryCard
-          title="Total Stok Habis Pakai"
-          value="0"
-          unit="Item"
-          onClick={() => router.push("/inventaris-habis-pakai/stok")}
-        />
-        <SummaryCard
-          title="Total Stok Habis Pakai"
-          value="0"
-          unit="Item"
-          onClick={() => router.push("/inventaris-habis-pakai/stok")}
-        />
-      </Stack>
+    <Box sx={{ height: '80vh', width: '100%' }}>
       <DataGrid
         rows={rows}
         columns={columns}
-        // loading={loading}
+        loading={loading}
+        rowCount={rowCount}
+        // Konfigurasi Server-side
+        paginationMode="server"
+        filterMode="server"
+        sortingMode="server"
+        // Model & Handler
+        paginationModel={paginationModel}
+        onPaginationModelChange={setPaginationModel}
+        filterModel={filterModel}
+        onFilterModelChange={setFilterModel}
+        sortModel={sortModel}
+        onSortModelChange={setSortModel}
+        // Tampilan & Slot
+        pageSizeOptions={[10, 25, 50]}
         slots={{ toolbar: CustomToolbar }}
         showToolbar
-        slotProps={{
-          loadingOverlay: {
-            variant: "skeleton",
-            noRowsVariant: "skeleton",
-          },
-          toolbar: {
-            title: "Stok Barang Menipis",
-          },
-          columnHeaders: {
-            title: {},
-          },
-        }}
         sx={{
           backgroundColor: theme.palette.background.paper,
           "& .MuiDataGrid-columnHeaderTitle": {
@@ -102,31 +150,6 @@ export default function DashboarPage() {
           },
         }}
       />
-      <DataGrid
-        rows={rows}
-        columns={columns}
-        // loading={loading}
-        slots={{ toolbar: CustomToolbar }}
-        showToolbar
-        slotProps={{
-          loadingOverlay: {
-            variant: "skeleton",
-            noRowsVariant: "skeleton",
-          },
-          toolbar: {
-            title: "Riwayat Barang Masuk dan Keluar",
-          },
-          columnHeaders: {
-            title: {},
-          },
-        }}
-        sx={{
-          backgroundColor: theme.palette.background.paper,
-          "& .MuiDataGrid-columnHeaderTitle": {
-            fontWeight: 600,
-          },
-        }}
-      />
-    </Stack>
+    </Box>
   );
 }

@@ -5,30 +5,52 @@ import apiClient from '@/lib/api/apiClient'; // Pastikan path ini benar
 /**
  * Frontend Service: Mengambil daftar aset individual dengan paginasi dan filter.
  * @param {object} params - Berisi parameter untuk query.
- * @param {number} params.page - Halaman saat ini.
- * @param {number} params.limit - Jumlah item per halaman.
- * @param {object} params.filters - Objek berisi filter (product, location, status, q).
  * @returns {Promise<object>} - Objek respons dari API.
  */
-export async function getPaginatedAssets({ page = 1, limit = 10, filters = {} }) {
-
+export async function getPaginatedAssets({ page = 1, limit = 10, sortBy = 'createdAt', order = 'desc', filters = {} }) {
   const cleanedFilters = {};
   for (const key in filters) {
-    if (filters[key]) { // Hanya tambahkan filter jika nilainya tidak kosong
+    if (filters[key] != null && filters[key] !== '') {
       cleanedFilters[key] = filters[key];
     }
   }
-  // Gabungkan semua parameter menjadi satu objek untuk dikirim ke axios
+  
   const params = {
     page,
     limit,
-    ...cleanedFilters, // Spread operator untuk menggabungkan semua filter ke level atas
+    sortBy,
+    order,
+    ...cleanedFilters,
   };
 
-  // Panggil endpoint dengan parameter yang sudah digabung
-  // apiClient akan secara otomatis mengubahnya menjadi query string:
-  // /api/assets?page=1&limit=10&status=Tersedia&q=laptop
   return apiClient.get('/assets', { params });
+}
+
+/**
+ * Frontend Service: Mengambil data agregat aset dengan paginasi dan filter.
+ * @param {object} params - Berisi parameter untuk query.
+ * @returns {Promise<object>} - Objek respons dari API.
+ */
+export async function getAssetAggregateSummary({ page = 1, limit = 10, sortBy = 'productName', order = 'asc', filters = {} }) {
+  // Membersihkan filter dari nilai yang kosong atau null
+  const cleanedFilters = {};
+  for (const key in filters) {
+    if (filters[key] != null && filters[key] !== '') {
+      cleanedFilters[key] = filters[key];
+    }
+  }
+
+  // Gabungkan semua parameter
+  const params = {
+    page,
+    limit,
+    sortBy,
+    order,
+    ...cleanedFilters,
+  };
+
+  // Panggil endpoint agregat yang baru
+  return apiClient.get('/assets/summary', { params });
 }
 
 export async function createAssets(assetsData) {
@@ -39,7 +61,7 @@ export async function getAssetById(id) {
   return apiClient.get(`/assets/${id}`);
 }
 
-export async function updateAsset(id, assetData) {
+export async function updateAssetById(id, assetData) {
   return apiClient.put(`/assets/${id}`, assetData);
 }
 

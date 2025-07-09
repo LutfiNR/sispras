@@ -5,8 +5,10 @@ import InventoryIcon from "@mui/icons-material/Inventory";
 import DoorBackIcon from '@mui/icons-material/DoorBack';
 import ViewStreamIcon from '@mui/icons-material/ViewStream';
 import TurnedInIcon from '@mui/icons-material/TurnedIn';
-import FileUploadIcon from '@mui/icons-material/FileUpload';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import TableChartIcon from '@mui/icons-material/TableChart';
+import HistoryIcon from "@mui/icons-material/History";
+
 
 
 export const NAVIGATION = [
@@ -25,6 +27,11 @@ export const NAVIGATION = [
   {
     kind: "header",
     title: "Inventaris Tetap",
+  },
+  {
+    segment: "dashboard/inventaris-tetap",
+    title: "Overview",
+    icon: <TableChartIcon />,
   },
   {
     segment: "dashboard/inventaris-tetap/aset",
@@ -54,19 +61,14 @@ export const NAVIGATION = [
     title: "Inventaris Sementara",
   },
   {
-    segment: "inventaris-sementara",
+    segment: "dashboard/inventaris-sementara",
     title: "Stok",
     icon: <InventoryIcon />,
   },
   {
-    segment: "inventaris-sementara/barang-masuk",
-    title: "Barang Masuk",
-    icon: <FileDownloadIcon />,
-  },
-  {
-    segment: "inventaris-sementara/barang-keluar",
-    title: "Barang Keluar",
-    icon: <FileUploadIcon />,
+    segment: "dashboard/inventaris-sementara/riwayat",
+    title: "Riwayat",
+    icon: <HistoryIcon />,
   },
 ];
 

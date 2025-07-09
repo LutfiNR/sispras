@@ -24,7 +24,7 @@ const defaultRowProcessor = (item) => ({ ...item, id: item._id });
  * @param {Function} fetchFunction - Fungsi service untuk mengambil data.
  * @param {Function} [rowProcessor=defaultRowProcessor] - (Opsional) Fungsi untuk memproses setiap baris data.
  */
-export function useDataGridServer(fetchFunction, rowProcessor = defaultRowProcessor) {
+export function useDataGridServer(fetchFunction, rowProcessor = defaultRowProcessor, initialFilters={}) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [rowCount, setRowCount] = useState(0);
@@ -33,24 +33,45 @@ export function useDataGridServer(fetchFunction, rowProcessor = defaultRowProces
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const apiFilters = convertFilterModelToApiParams(filterModel);
-    try {
-      const response = await fetchFunction({
-        page: paginationModel.page + 1,
-        limit: paginationModel.pageSize,
-        filters: apiFilters,
-      });
-
-      // --- PERBAIKAN KUNCI DI SINI ---
-      // Gunakan fungsi rowProcessor untuk memformat data
-      const formattedRows = response.data.map(rowProcessor);
-      
-      setRows(formattedRows);
-      setRowCount(response.pagination.totalItems || 0);
-    } catch (error) {
-      toast.error(error.message || "Gagal memuat data.");
-    } finally {
-      setLoading(false);
+    if(!initialFilters.productId){
+      const apiFilters = convertFilterModelToApiParams(filterModel);
+      try {
+        const response = await fetchFunction({
+          page: paginationModel.page + 1,
+          limit: paginationModel.pageSize,
+          filters: apiFilters,
+        });
+  
+        // --- PERBAIKAN KUNCI DI SINI ---
+        // Gunakan fungsi rowProcessor untuk memformat data
+        const formattedRows = response.data.map(rowProcessor);
+        
+        setRows(formattedRows);
+        setRowCount(response.pagination.totalItems || 0);
+      } catch (error) {
+        toast.error(error.message || "Gagal memuat data.");
+      } finally {
+        setLoading(false);
+      }
+    }else{
+      try {
+        const response = await fetchFunction({
+          page: paginationModel.page + 1,
+          limit: paginationModel.pageSize,
+          filters: initialFilters,
+        });
+  
+        // --- PERBAIKAN KUNCI DI SINI ---
+        // Gunakan fungsi rowProcessor untuk memformat data
+        const formattedRows = response.data.map(rowProcessor);
+        
+        setRows(formattedRows);
+        setRowCount(response.pagination.totalItems || 0);
+      } catch (error) {
+        toast.error(error.message || "Gagal memuat data.");
+      } finally {
+        setLoading(false);
+      }
     }
   }, [paginationModel, filterModel, fetchFunction, rowProcessor]);
 
