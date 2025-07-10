@@ -18,12 +18,12 @@ import {
  * Menangani permintaan GET untuk mengambil detail satu produk habis pakai berdasarkan ID.
  */
 export async function GET(request, { params }) {
+  const { id } = await params;
   try {
     await connectToDatabase();
     const session = await getServerSession(authOptions);
     authorizeRole(session);
 
-    const { id } = params;
     const product = await getConsumableProductById(id);
 
     return NextResponse.json({ success: true, data: product });
@@ -42,6 +42,7 @@ export async function GET(request, { params }) {
  * Menangani permintaan PUT untuk memperbarui satu produk habis pakai berdasarkan ID.
  */
 export async function PUT(request, { params }) {
+  const { id } = await params;
   try {
     await connectToDatabase();
     const session = await getServerSession(authOptions);
@@ -53,7 +54,6 @@ export async function PUT(request, { params }) {
       );
     }
 
-    const { id } = params;
     const data = await request.json();
     const updatedProduct = await updateConsumableProductById(id, data);
 
@@ -81,6 +81,7 @@ export async function PUT(request, { params }) {
  * Menangani permintaan DELETE untuk menghapus satu produk habis pakai berdasarkan ID.
  */
 export async function DELETE(request, { params }) {
+  const { id } = await params;
   try {
     await connectToDatabase();
     const session = await getServerSession(authOptions);
@@ -92,7 +93,6 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    const { id } = params;
     await deleteConsumableProductById(id);
 
     return NextResponse.json({ success: true, message: 'Produk berhasil dihapus.' });

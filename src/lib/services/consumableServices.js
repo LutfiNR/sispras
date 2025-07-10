@@ -21,7 +21,7 @@ const consumableProductSchema = z.object({
 const restockSchema = z.object({
   productId: z.string().refine((val) => Types.ObjectId.isValid(val), "ID Produk tidak valid."),
   unit: z.string().min(1, "Satuan wajib diisi."),
-  quantityAdded: z.number().int().min(1, "Jumlah harus minimal 1."),
+  quantity: z.number().int().min(1, "Jumlah harus minimal 1."),
   notes: z.string().trim().optional(),
   person_name: z.string().trim().min(1, "Nama penambah stok wajib diisi."),
   person_role: z.string().trim().optional(),

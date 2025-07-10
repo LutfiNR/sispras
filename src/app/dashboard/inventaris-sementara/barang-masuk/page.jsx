@@ -26,7 +26,6 @@ export default function ConsumableRestockPage() {
     const [formData, setFormData] = useState({
         productId: '',
         quantityAdded: 1,
-        unit: '', // Akan diisi otomatis
         person_name: '',
         person_role: '',
         notes: '',
@@ -54,20 +53,12 @@ export default function ConsumableRestockPage() {
             required: true 
         },
         { 
-            name: 'quantityAdded', 
+            name: 'quantity', 
             label: 'Jumlah Masuk', 
             type: 'number', 
             required: true, 
             halfWidth: true,
             inputProps: { min: 1 },
-        },
-        { 
-            name: 'unit', 
-            label: 'Satuan', 
-            type: 'text', 
-            required: true, 
-            halfWidth: true,
-            disabled: true, // Satuan tidak bisa diubah, mengikuti produk
         },
         { name: 'notes', label: 'Catatan (Opsional)', type: 'textarea', rows: 4 },
     ], [productOptions, isLoadingProducts]);

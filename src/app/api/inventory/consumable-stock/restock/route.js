@@ -20,8 +20,13 @@ export async function POST(request) {
   try {
     await connectToDatabase();
     const session = await getServerSession(authOptions);
-    // Memastikan pengguna yang melakukan aksi adalah admin atau manager
-    authorizeRole(session, ['admin', 'manager']);
+    const validationResponse = authorizeRole(session);
+    if (!validationResponse.success) {
+      return NextResponse.json(
+        { message: validationResponse.messages },
+        { status: validationResponse.status }
+      );
+    }
 
     const data = await request.json();
     
