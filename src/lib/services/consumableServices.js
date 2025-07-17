@@ -16,12 +16,13 @@ const consumableProductSchema = z.object({
   product_code: z.string().trim().min(1, "Kode produk wajib diisi."),
   name: z.string().trim().min(1, "Nama produk wajib diisi."),
   category: z.string().refine((val) => Types.ObjectId.isValid(val), "ID Kategori tidak valid."),
+  measurement_unit: z.string().trim().min(1, "Satuan unit produk wajib diisi."),
+  reorder_point: z.number().int().min(1, "Minimum Stock produk wajib diisi."),
 });
 
 const restockSchema = z.object({
   productId: z.string().refine((val) => Types.ObjectId.isValid(val), "ID Produk tidak valid."),
-  unit: z.string().min(1, "Satuan wajib diisi."),
-  quantity: z.number().int().min(1, "Jumlah harus minimal 1."),
+  quantityAdded: z.number().int().min(1, "Jumlah harus minimal 1."),
   notes: z.string().trim().optional(),
   person_name: z.string().trim().min(1, "Nama penambah stok wajib diisi."),
   person_role: z.string().trim().optional(),
@@ -63,14 +64,14 @@ export async function getPaginatedConsumableProducts({ page = 1, limit = 10, sor
     { $lookup: { from: 'categories', localField: 'category', foreignField: '_id', as: 'category' } },
     { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } }
   );
-  
+
   pipeline.push({
     $facet: {
       data: [
         { $sort: sortOptions },
         { $skip: skip },
         { $limit: limitNum },
-        { $project: { categoryName: '$category.name', name: 1, product_code: 1, createdAt: 1 } }
+        { $project: { categoryName: '$category.name', name: 1, product_code: 1, createdAt: 1, measurement_unit: 1, reorder_point: 1 } }
       ],
       metadata: [{ $count: 'totalItems' }]
     }
@@ -83,7 +84,7 @@ export async function getPaginatedConsumableProducts({ page = 1, limit = 10, sor
 }
 
 export async function getAllConsumableProductsForDropdown() {
-  return await ConsumableProduct.find({}).select('name product_code').sort({ name: 1 }).lean();
+  return await ConsumableProduct.find({}).select('name product_code measurement_unit').sort({ name: 1 }).lean();
 }
 
 export async function createConsumableProduct(data) {
@@ -122,6 +123,7 @@ export async function getConsumableProductById(id) {
 }
 
 export async function updateConsumableProductById(id, data) {
+  console.log(data)
   const validation = consumableProductSchema.partial().safeParse(data);
   if (!validation.success) {
     const error = new Error("Input tidak valid.");
@@ -167,42 +169,91 @@ export async function deleteConsumableProductById(id) {
 // ===================================================================================
 
 export async function getPaginatedConsumableStock({ page = 1, limit = 10, sortBy = 'product.name', order = 'asc', filters = {} }) {
-    const pageNum = parseInt(page, 10) || 1;
-    const limitNum = parseInt(limit, 10) || 10;
-    const skip = (pageNum - 1) * limitNum;
-    const sortOptions = { [sortBy]: order === 'desc' ? -1 : 1 };
-    const pipeline = [];
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = parseInt(limit, 10) || 10;
+  const skip = (pageNum - 1) * limitNum;
+  const sortOptions = { [sortBy]: order === 'desc' ? -1 : 1 };
+  const pipeline = [];
 
-    // Tahap 1: Join dengan Produk
-    pipeline.push(
-        { $lookup: { from: 'consumableproducts', localField: 'product', foreignField: '_id', as: 'product' } },
-        { $unwind: '$product' }
-    );
+  // Tahap 1: Join dengan Produk
+  pipeline.push(
+    { $lookup: { from: 'consumableproducts', localField: 'product', foreignField: '_id', as: 'product' } },
+    { $unwind: '$product' }
+  );
 
-    // Tahap 2: Filter
-    const matchConditions = [];
-    const { q } = filters;
-    if (q) {
-        matchConditions.push({ $or: [{ 'product.name': { $regex: q, $options: 'i' } }, { 'product.product_code': { $regex: q, $options: 'i' } }] });
-    }
-    if (matchConditions.length > 0) {
-        pipeline.push({ $match: { $and: matchConditions } });
-    }
+  // Tahap 2: Filter
+  const matchConditions = [];
+  const { q } = filters;
+  if (q) {
+    matchConditions.push({ $or: [{ 'product.name': { $regex: q, $options: 'i' } }, { 'product.product_code': { $regex: q, $options: 'i' } }] });
+  }
+  if (matchConditions.length > 0) {
+    pipeline.push({ $match: { $and: matchConditions } });
+  }
 
-    // Tahap 3: Paginasi
-    pipeline.push({
-        $facet: {
-            data: [{ $sort: sortOptions }, { $skip: skip }, { $limit: limitNum }],
-            metadata: [{ $count: 'totalItems' }]
+  // Tahap 3: Paginasi
+  pipeline.push({
+    $facet: {
+      data: [{ $sort: sortOptions }, { $skip: skip }, { $limit: limitNum }, {
+        $project: {
+          _id: 1, // Pertahankan _id dari ConsumableStock
+          quantity: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          // Bentuk ulang field 'product' agar hanya berisi data yang relevan
+          product: {
+            _id: "$product._id",
+            name: "$product.name",
+            product_code: "$product.product_code",
+            measurement_unit: "$product.measurement_unit",
+            reorder_point: "$product.reorder_point"
+          }
         }
-    });
+      }],
+      metadata: [{ $count: 'totalItems' }]
+    }
+  });
 
-    const result = await ConsumableStock.aggregate(pipeline);
-    const data = result[0]?.data || [];
-    const totalItems = result[0]?.metadata[0]?.totalItems || 0;
-    return { data, pagination: { totalItems, currentPage: pageNum, totalPages: Math.ceil(totalItems / limitNum), limit: limitNum } };
+  const result = await ConsumableStock.aggregate(pipeline);
+  const data = result[0]?.data || [];
+  const totalItems = result[0]?.metadata[0]?.totalItems || 0;
+  return { data, pagination: { totalItems, currentPage: pageNum, totalPages: Math.ceil(totalItems / limitNum), limit: limitNum } };
 }
 
+/**
+ * [BARU] Mengambil detail satu item stok berdasarkan ID-nya.
+ * @param {string} id - ID dari dokumen ConsumableStock.
+ * @returns {Promise<object>} Dokumen stok yang ditemukan.
+ */
+export async function getConsumableStockById(id) {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    const error = new Error("ID Stok tidak valid.");
+    error.isNotFound = true;
+    throw error;
+  }
+
+  // Ambil data stok dan populate detail produknya
+  const stockItem = await ConsumableStock.findById(id)
+    .populate({
+      path: 'product',
+      model: ConsumableProduct, // Pastikan model di-referensikan dengan benar
+      select: 'name product_code measurement_unit reorder_point', // Ambil semua field yang relevan
+    })
+    .lean();
+
+  if (!stockItem) {
+    const error = new Error('Item stok tidak ditemukan.');
+    error.isNotFound = true;
+    throw error;
+  }
+  return stockItem;
+}
+
+/**
+ * Mengambil riwayat transaksi (log) dengan paginasi dan filter yang lengkap.
+ * @param {object} options - Opsi untuk query.
+ * @returns {Promise<object>} Objek berisi data log dan informasi paginasi.
+ */
 export async function getPaginatedConsumableLogs({ page = 1, limit = 10, sortBy = 'createdAt', order = 'desc', filters = {} }) {
     const pageNum = parseInt(page, 10) || 1;
     const limitNum = parseInt(limit, 10) || 10;
@@ -210,7 +261,7 @@ export async function getPaginatedConsumableLogs({ page = 1, limit = 10, sortBy 
     const sortOptions = { [sortBy]: order === 'desc' ? -1 : 1 };
     const pipeline = [];
 
-    // Tahap 1: Join Bertingkat
+    // --- Tahap 1: Join Bertingkat ---
     pipeline.push(
         { $lookup: { from: 'consumablestocks', localField: 'stock_item', foreignField: '_id', as: 'stock_item' } },
         { $unwind: '$stock_item' },
@@ -220,9 +271,56 @@ export async function getPaginatedConsumableLogs({ page = 1, limit = 10, sortBy 
         { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } }
     );
 
-    // [Logika filter bisa ditambahkan di sini jika perlu]
+    // --- Tahap 2: Logika Filter Dinamis ---
+    const matchConditions = [];
+    const { q, ...columnFilters } = filters;
+    
+    // Filter pencarian cepat (q)
+    if (q) {
+        matchConditions.push({ $or: [
+            { 'stock_item.product.name': { $regex: q, $options: 'i' } },
+            { 'person_name': { $regex: q, $options: 'i' } },
+            { 'notes': { $regex: q, $options: 'i' } },
+            { 'user.name': { $regex: q, $options: 'i' } },
+        ]});
+    }
 
-    // Tahap 2: Paginasi
+    // Filter per kolom dari DataGrid
+    for (const key in columnFilters) {
+        if (columnFilters[key]) {
+            const filterValue = columnFilters[key];
+            let condition;
+            
+            // Logika spesifik untuk setiap field filter
+            switch (key) {
+                case 'createdAt':
+                    const date = new Date(filterValue);
+                    const startOfDay = new Date(date.setHours(0, 0, 0, 0));
+                    const endOfDay = new Date(date.setHours(23, 59, 59, 999));
+                    condition = { createdAt: { $gte: startOfDay, $lte: endOfDay } };
+                    break;
+                case 'quantity_changed':
+                    const quantity = parseInt(filterValue, 10);
+                    if (!isNaN(quantity)) {
+                        condition = { [key]: quantity };
+                    }
+                    break;
+                default:
+                    condition = { [key]: { $regex: filterValue, $options: 'i' } };
+                    break;
+            }
+            if (condition) {
+                matchConditions.push(condition);
+            }
+        }
+    }
+
+    // Jika ada kondisi filter, tambahkan tahap $match ke pipeline
+    if (matchConditions.length > 0) {
+        pipeline.push({ $match: { $and: matchConditions } });
+    }
+
+    // --- Tahap 3: Paginasi ---
     pipeline.push({
         $facet: {
             data: [{ $sort: sortOptions }, { $skip: skip }, { $limit: limitNum }],
@@ -233,7 +331,16 @@ export async function getPaginatedConsumableLogs({ page = 1, limit = 10, sortBy 
     const result = await ConsumableLog.aggregate(pipeline);
     const data = result[0]?.data || [];
     const totalItems = result[0]?.metadata[0]?.totalItems || 0;
-    return { data, pagination: { totalItems, currentPage: pageNum, totalPages: Math.ceil(totalItems / limitNum), limit: limitNum } };
+    
+    return { 
+        data, 
+        pagination: { 
+            totalItems, 
+            currentPage: pageNum, 
+            totalPages: Math.ceil(totalItems / limitNum), 
+            limit: limitNum 
+        } 
+    };
 }
 
 export async function recordRestock(data, userId) {
@@ -284,7 +391,7 @@ export async function recordUsage(data, userId) {
     throw error;
   }
   const { stockItemId, quantityTaken, notes, person_name, person_role } = validation.data;
-  
+
   const dbSession = await mongoose.startSession();
   try {
     let result;
@@ -292,7 +399,7 @@ export async function recordUsage(data, userId) {
       const stockItem = await ConsumableStock.findById(stockItemId).session(dbSession);
       if (!stockItem) throw new Error(`Stok item tidak ditemukan.`);
       if (stockItem.quantity < quantityTaken) throw new Error(`Stok tidak mencukupi. Stok saat ini: ${stockItem.quantity}.`);
-      
+
       stockItem.quantity -= quantityTaken;
       await stockItem.save({ session: dbSession });
 

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 // Komponen MUI
 import { Box, Tooltip, IconButton, Button, Chip } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
+import { DataGrid, getGridStringOperators } from "@mui/x-data-grid";
 import HistoryIcon from "@mui/icons-material/History";
 import DownloadIcon from "@mui/icons-material/Download";
 import UploadIcon from "@mui/icons-material/Upload";
@@ -53,17 +53,23 @@ export default function ConsumableStockPage() {
       renderCell: (params) =>
         params.api.getRowIndexRelativeToVisibleRows(params.id) + 1,
     },
-    { 
-      field: "product.name", 
-      headerName: "Nama Barang", 
+    {
+      field: "product.name",
+      headerName: "Nama Barang",
       flex: 1,
       valueGetter: (value, row) => row.product?.name || "-",
+      filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
     },
-    { 
-      field: "product.product_code", 
-      headerName: "Kode Barang", 
+    {
+      field: "product.product_code",
+      headerName: "Kode Barang",
       width: 150,
       valueGetter: (value, row) => row.product?.product_code || "-",
+      filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
     },
     {
       field: "quantity",
@@ -72,25 +78,30 @@ export default function ConsumableStockPage() {
       width: 150,
       headerAlign: "center",
       align: "center",
+      filterable: false,
       renderCell: (params) => {
-        const isLowStock = params.row.quantity <= params.row.reorder_point;
+        const isLowStock = params.row.quantity <= params.row.product.reorder_point;
         return (
-            <Chip 
-                label={`${params.row.quantity} ${params.row.unit}`} 
-                color={isLowStock ? 'error' : 'default'}
-                variant={isLowStock ? 'filled' : 'outlined'}
-                size="small"
-            />
+          <Chip
+            label={`${params.row.quantity} ${params.row.product.measurement_unit}`}
+            color={isLowStock ? 'error' : 'default'}
+            variant={isLowStock ? 'filled' : 'outlined'}
+            size="small"
+          />
         )
       }
     },
-    { 
-      field: "reorder_point", 
-      headerName: "Batas Minimum", 
+    {
+      field: "product.reorder_point",
+      headerName: "Batas Minimum",
       type: 'number',
       width: 150,
       headerAlign: "center",
       align: "center",
+      filterable: false,
+      valueGetter: (value, row) => {
+        return row.product?.reorder_point || 0;
+      },
     },
     {
       field: "actions",
@@ -112,14 +123,14 @@ export default function ConsumableStockPage() {
 
   return (
     <Box sx={{ height: '80vh', width: '100%' }}>
-        <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-            <Button variant="outlined" startIcon={<HistoryIcon />} onClick={handleViewLog}>
-                Riwayat
-            </Button>
-            <Button variant="contained" startIcon={<DownloadIcon />} onClick={handleRestock}>
-                Barang Masuk
-            </Button>
-        </Box>
+      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+        <Button variant="outlined" startIcon={<HistoryIcon />} onClick={handleViewLog}>
+          Riwayat
+        </Button>
+        <Button variant="contained" startIcon={<DownloadIcon />} onClick={handleRestock}>
+          Barang Masuk
+        </Button>
+      </Box>
       <DataGrid
         rows={rows}
         columns={columns}

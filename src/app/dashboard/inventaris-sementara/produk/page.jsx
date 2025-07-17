@@ -115,6 +115,16 @@ export default function ConsumableProductPage() {
       ), valueGetter: (value, row) => row.category?.name || "-"
     },
     {
+      field: "measurement_unit", headerName: "Satuan Unit", flex: 1, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
+    },
+    {
+      field: "reorder_point", headerName: "Jumlah Minimum Stock", flex: 1, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
+    },
+    {
       field: "actions",
       headerName: "Aksi",
       headerAlign: "center",

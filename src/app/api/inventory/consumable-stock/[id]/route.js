@@ -15,15 +15,15 @@ import { getConsumableStockById } from '@/lib/services/consumableServices';
  * Menangani GET untuk mengambil detail satu item stok.
  */
 export async function GET(request, { params }) {
+  const { id } = await params;
+  if (!id) {
+      return NextResponse.json({ success: false, message: 'ID Stok tidak ditemukan.' }, { status: 400 });
+  }
   try {
     await connectToDatabase();
     const session = await getServerSession(authOptions);
     authorizeRole(session); // Pengguna yang login boleh melihat detail stok
 
-    const { id } = params;
-    if (!id) {
-        return NextResponse.json({ success: false, message: 'ID Stok tidak ditemukan.' }, { status: 400 });
-    }
 
     const stockItem = await getConsumableStockById(id);
     return NextResponse.json({ success: true, data: stockItem });

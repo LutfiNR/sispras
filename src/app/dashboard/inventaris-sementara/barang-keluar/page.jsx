@@ -92,8 +92,11 @@ function UsageForm() {
         setFieldErrors({});
         setSubmitError(null);
 
+        const payload = {...formData,
+            quantityTaken: parseInt(formData.quantityTaken)
+        }
         try {
-            await recordUsage(formData);
+            await recordUsage(payload);
             setSnackbar({ open: true, message: 'Pengambilan stok berhasil dicatat!', severity: 'success' });
             router.push('/dashboard/inventaris-sementara');
         } catch (err) {

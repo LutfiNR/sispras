@@ -12,16 +12,16 @@ import { recordRestock, getAllConsumableProductsForDropdown } from '@/services/c
 import { useDropdownData } from '@/lib/hooks/useDropdownData';
 
 const productFormatter = (item) => ({
-        value: item._id,
-        label: `${item.name} (${item.product_code})`,
-        unit: item.measurement_unit, // Asumsi model produk memiliki 'measurement_unit'
-    });
+    value: item._id,
+    label: `${item.name} (${item.product_code})`,
+    unit: item.measurement_unit, // Asumsi model produk memiliki 'measurement_unit'
+});
 /**
- * Halaman untuk mencatat penambahan stok barang habis pakai (Restock).
- */
+ * Halaman untuk mencatat penambahan stok barang habis pakai (Restock).
+ */
 export default function ConsumableRestockPage() {
     const router = useRouter();
-    
+
     // --- STATE MANAGEMENT ---
     const [formData, setFormData] = useState({
         productId: '',
@@ -30,33 +30,33 @@ export default function ConsumableRestockPage() {
         person_role: '',
         notes: '',
     });
-    
+
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [fieldErrors, setFieldErrors] = useState({});
     const [submitError, setSubmitError] = useState(null);
     const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
 
-    
+
     const { options: productOptions, loading: isLoadingProducts } = useDropdownData(getAllConsumableProductsForDropdown, productFormatter);
 
     // --- KONFIGURASI FORM ---
     const formConfig = useMemo(() => [
         { name: 'person_name', label: 'Nama Penambah Stok', type: 'text', required: true },
         { name: 'person_role', label: 'Jabatan (Opsional)', type: 'text' },
-        { 
-            name: 'productId', 
-            label: 'Produk', 
-            type: 'autocomplete', 
-            options: productOptions, 
+        {
+            name: 'productId',
+            label: 'Produk',
+            type: 'autocomplete',
+            options: productOptions,
             loading: isLoadingProducts,
-            required: true 
+            required: true
         },
-        { 
-            name: 'quantity', 
-            label: 'Jumlah Masuk', 
-            type: 'number', 
-            required: true, 
+        {
+            name: 'quantityAdded',
+            label: 'Jumlah Masuk',
+            type: 'number',
+            required: true,
             halfWidth: true,
             inputProps: { min: 1 },
         },
@@ -67,16 +67,10 @@ export default function ConsumableRestockPage() {
     const handleFormChange = (name, value) => {
         let newFormData = { ...formData, [name]: value };
 
-        // Jika produk berubah, update juga satuannya secara otomatis
-        if (name === 'productId') {
-            const selectedProd = productOptions.find(p => p.value === value);
-            newFormData.unit = selectedProd ? selectedProd.unit : '';
-        }
-
         setFormData(newFormData);
-        
+
         if (fieldErrors[name]) {
-            setFieldErrors(prev => ({...prev, [name]: undefined}));
+            setFieldErrors(prev => ({ ...prev, [name]: undefined }));
         }
     };
 
@@ -86,10 +80,14 @@ export default function ConsumableRestockPage() {
         setSubmitError(null);
 
         try {
-            await recordRestock(formData);
-            
+            const payload = {
+                ...formData,
+                quantityAdded: parseInt(formData.quantityAdded, 10),
+            };
+            await recordRestock(payload);
+
             setSnackbar({ open: true, message: 'Stok berhasil ditambahkan!', severity: 'success' });
-            
+
             setTimeout(() => {
                 router.push('/dashboard/inventaris-sementara');
             }, 1500);

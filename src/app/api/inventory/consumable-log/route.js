@@ -26,7 +26,18 @@ export async function GET(request) {
     
     // Mengumpulkan semua filter dari URL secara dinamis
     const filters = {};
-    const allowedFilters = ['q', 'type', 'user', 'stock_item', 'startDate', 'endDate'];
+    const allowedFilters = [
+        'q', 
+        'createdAt', 
+        'stock_item.product.name', 
+        'transaction_type', 
+        'quantity_changed', 
+        'person_name', 
+        'user.name',
+        'notes',
+        'startDate', 
+        'endDate'
+    ];
     allowedFilters.forEach(key => {
         if (searchParams.has(key)) {
             filters[key] = searchParams.get(key);

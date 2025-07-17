@@ -389,7 +389,9 @@ export async function getAssetAggregateSummary({
             locationId: "$locationId",
             productName: "$_id.productName", 
             brandName: "$_id.brandName",
-            locationName: { $concat: [ "Gd. ", "$_id.building", " - Lt. ", "$_id.floor", " - R. ", "$_id.locationName" ] },
+            building: "$_id.building",
+            floor: "$_id.floor",
+            room: "$_id.locationName",
             purchased_year: "$purchased_year",
             estimated_price: "$estimated_price",
             jumlah: "$jumlah"

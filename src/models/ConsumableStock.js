@@ -25,20 +25,6 @@ const ConsumableStockSchema = new Schema(
       min: 0,
       default: 0,
     },
-    /**
-     * Satuan dari kuantitas (contoh: Pcs, Box, Rim).
-     */
-    unit: {
-      type: String,
-      required: [true, 'Satuan tidak boleh kosong.'],
-    },
-    /**
-     * Titik batas minimum stok untuk notifikasi pemesanan ulang.
-     */
-    reorder_point: {
-      type: Number,
-      default: 0,
-    },
   },
   { timestamps: true }
 );

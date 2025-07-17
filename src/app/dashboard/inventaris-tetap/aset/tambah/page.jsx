@@ -26,7 +26,7 @@ const productFormatter = (item) => ({
 
 const locationFormatter = (item) => ({
   value: item._id,
-  label: `Gd. ${item.building} - Lt. ${item.floor} - R. ${item.name}`,
+  label: `Gd.${item.building} - Lt.${item.floor} - R.${item.name}`,
   ...item,
 });
 /**

@@ -13,16 +13,18 @@ import { getAllCategoriesForDropdown } from '@/services/categoryServices';
 import { useDropdownData } from '@/lib/hooks/useDropdownData';
 
 /**
- * Halaman untuk menambahkan data produk habis pakai baru.
- */
+ * Halaman untuk menambahkan data produk habis pakai baru.
+ */
 export default function TambahConsumableProductPage() {
     const router = useRouter();
-    
+
     // --- STATE MANAGEMENT ---
     const [formData, setFormData] = useState({
         product_code: '',
         name: '',
         category: '',
+        measurement_unit: '',
+        reorder_point: '',
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [fieldErrors, setFieldErrors] = useState({});
@@ -40,14 +42,16 @@ export default function TambahConsumableProductPage() {
     const formConfig = useMemo(() => [
         { name: 'product_code', label: 'Kode Produk', type: 'text', required: true },
         { name: 'name', label: 'Nama Produk', type: 'text', required: true },
-        { 
-            name: 'category', 
-            label: 'Kategori', 
+        {
+            name: 'category',
+            label: 'Kategori',
             type: 'autocomplete', // Menggunakan autocomplete untuk konsistensi
-            options: categoryOptions, 
+            options: categoryOptions,
             loading: isLoadingCategories,
-            required: true 
+            required: true
         },
+        { name: 'measurement_unit', label: 'Satuan Unit', type: 'text', required: true },
+        { name: 'reorder_point', label: 'Jumlah Minimum Stock', type: 'number', required: true },
     ], [categoryOptions, isLoadingCategories]);
 
     // --- EVENT HANDLERS ---
@@ -62,16 +66,20 @@ export default function TambahConsumableProductPage() {
         setIsSubmitting(true);
         setFieldErrors({});
         setSubmitError(null);
-        
+
+        const payload = {
+            ...formData,
+            reorder_point: parseInt(formData.reorder_point),
+        };
         try {
-            await createConsumableProduct(formData);
-            
+            await createConsumableProduct(payload);
+
             setSnackbar({
                 open: true,
                 message: "Produk habis pakai baru berhasil ditambahkan!",
                 severity: "success",
             });
-            
+
             setTimeout(() => {
                 router.push('/dashboard/inventaris-sementara/produk'); // Sesuaikan rute
             }, 1500);
@@ -79,7 +87,7 @@ export default function TambahConsumableProductPage() {
         } catch (err) {
             const errorMessage = err.message || "Terjadi kesalahan yang tidak diketahui.";
             setSnackbar({ open: true, message: errorMessage, severity: 'error' });
-            
+
             if (err.errors) {
                 setFieldErrors(err.errors);
             } else {
@@ -106,7 +114,7 @@ export default function TambahConsumableProductPage() {
             </Box>
         );
     }
-    
+
     return (
         <>
             <FormComponent

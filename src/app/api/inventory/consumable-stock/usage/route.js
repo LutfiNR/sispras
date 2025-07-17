@@ -24,6 +24,7 @@ export async function POST(request) {
     authorizeRole(session);
 
     const data = await request.json();
+    console.log(data);
     
     // Panggil service untuk menjalankan logika bisnis, teruskan ID pengguna
     const result = await recordUsage(data, session.user.id);

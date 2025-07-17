@@ -27,44 +27,40 @@ export async function getDashboardSummary() {
 
 export async function getLowStockItems(limit = 5) {
   const items = await ConsumableStock.aggregate([
-    // Tahap 1: Filter item stok yang rendah
-    {
-      $match: {
-        $expr: { $lte: ["$quantity", "$reorder_point"] }
-      }
-    },
-    // Tahap 2: Urutkan hasil sebelum di-limit untuk performa
-    {
-      $sort: { quantity: 1 }
-    },
-    // Tahap 3: Batasi jumlah hasil
-    {
-      $limit: limit
-    },
-    // Tahap 4: Gabungkan dengan detail produk
+    // Tahap 1: Gabungkan dengan detail produk DULU
     {
       $lookup: {
-        from: 'consumableproducts', // Nama koleksi produk habis pakai (biasanya bentuk jamak lowercase)
+        from: 'consumableproducts',
         localField: 'product',
         foreignField: '_id',
         as: 'productDetails'
       }
     },
-    // Tahap 5: Buka array hasil lookup
     {
       $unwind: {
         path: "$productDetails",
         preserveNullAndEmptyArrays: true // Jaga item stok jika produknya terhapus
       }
     },
-    // Tahap 6: Bentuk ulang output (project) sesuai permintaan
+    // Tahap 2: SEKARANG baru filter, bandingkan field dari kedua koleksi
+    {
+      $match: {
+        $expr: { $lte: ["$quantity", "$productDetails.reorder_point"] }
+      }
+    },
+    // Tahap 3: Urutkan dan batasi hasil
+    { $sort: { quantity: 1 } },
+    { $limit: limit },
+    // Tahap 4: Bentuk ulang output (project) sesuai permintaan
     {
       $project: {
         _id: 1, // Pertahankan _id dari item stok
         productId: "$productDetails._id",
         productName: "$productDetails.name",
+        measurement_unit: "$productDetails.measurement_unit",
         quantity: 1,
-        unit: 1
+        unit: 1,
+        reorder_point: "$productDetails.reorder_point" // Sertakan untuk kejelasan di frontend
       }
     }
   ]);

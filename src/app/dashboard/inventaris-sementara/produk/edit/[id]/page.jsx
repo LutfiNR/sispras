@@ -13,18 +13,20 @@ import { getAllCategoriesForDropdown } from '@/services/categoryServices';
 import { useDropdownData } from '@/lib/hooks/useDropdownData';
 
 /**
- * Halaman untuk mengedit data produk habis pakai yang sudah ada.
- */
+ * Halaman untuk mengedit data produk habis pakai yang sudah ada.
+ */
 export default function EditConsumableProductPage() {
     const router = useRouter();
     const params = useParams();
     const productId = params.id;
-    
+
     // --- STATE MANAGEMENT ---
     const [formData, setFormData] = useState({
         product_code: '',
         name: '',
         category: '',
+        measurement_unit: '',
+        reorder_point: '',
     });
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,11 +50,13 @@ export default function EditConsumableProductPage() {
             try {
                 const response = await getConsumableProductById(productId);
                 const productData = response.data;
-                
+
                 setFormData({
                     product_code: productData.product_code || '',
                     name: productData.name || '',
                     category: productData.category?._id || '',
+                    measurement_unit: productData.measurement_unit || '',
+                    reorder_point: productData.reorder_point || '',
                 });
 
             } catch (err) {
@@ -74,14 +78,16 @@ export default function EditConsumableProductPage() {
     const formConfig = useMemo(() => [
         { name: 'product_code', label: 'Kode Produk', type: 'text', required: true },
         { name: 'name', label: 'Nama Produk', type: 'text', required: true },
-        { 
-            name: 'category', 
-            label: 'Kategori', 
+        {
+            name: 'category',
+            label: 'Kategori',
             type: 'autocomplete',
-            options: categoryOptions, 
+            options: categoryOptions,
             loading: isLoadingCategories,
-            required: true 
+            required: true
         },
+        { name: 'measurement_unit', label: 'Satuan Unit', type: 'text', required: true },
+        { name: 'reorder_point', label: 'Jumlah Minimum Stock', type: 'number', required: true },
     ], [categoryOptions, isLoadingCategories]);
 
     // --- EVENT HANDLERS ---
@@ -96,16 +102,20 @@ export default function EditConsumableProductPage() {
         setIsSubmitting(true);
         setFieldErrors({});
         setSubmitError(null);
-        
+
+        const payload = {
+            ...formData,
+            reorder_point: parseInt(formData.reorder_point),
+        };
         try {
-            await updateConsumableProductById(productId, formData);
-            
+            await updateConsumableProductById(productId, payload);
+
             setSnackbar({
                 open: true,
                 message: "Produk berhasil diperbarui!",
                 severity: "success",
             });
-            
+
             setTimeout(() => {
                 router.push('/dashboard/inventaris-sementara/produk'); // Sesuaikan rute
             }, 1500);
@@ -113,7 +123,7 @@ export default function EditConsumableProductPage() {
         } catch (err) {
             const errorMessage = err.message || "Gagal memperbarui data.";
             setSnackbar({ open: true, message: errorMessage, severity: 'error' });
-            
+
             if (err.errors) {
                 setFieldErrors(err.errors);
             } else {
@@ -140,7 +150,7 @@ export default function EditConsumableProductPage() {
             </Box>
         );
     }
-    
+
     return (
         <>
             <FormComponent

@@ -33,8 +33,16 @@ const ConsumableProductSchema = new Schema({
     ref: 'Category',
     required: [true, 'Kategori tidak boleh kosong.'],
   },
-}, { 
-  timestamps: true 
+  measurement_unit: {
+    type: String,
+    required: [true, 'Satuan pengukuran tidak boleh kosong.'],
+  },
+  reorder_point: {
+    type: Number,
+    default: 0,
+  },
+}, {
+  timestamps: true
 });
 
 const ConsumableProduct = models.ConsumableProduct || model('ConsumableProduct', ConsumableProductSchema);

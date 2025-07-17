@@ -28,7 +28,7 @@ export async function GET(request) {
 
         // Mengumpulkan semua filter dari URL
         const filters = {};
-        const allowedFilters = ['q', 'name', 'category', 'product_code'];
+        const allowedFilters = ['q', 'name', 'category', 'product_code', 'measurement_unit'];
         allowedFilters.forEach(key => {
             if (searchParams.has(key)) {
                 filters[key] = searchParams.get(key);

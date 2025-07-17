@@ -9,12 +9,10 @@ import SummaryCard from "@/components/dashboard/SummaryCard";
 // material-ui
 import { Box, Typography, CircularProgress, Alert, Chip, Stack, Tooltip, IconButton } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import theme from "@/theme/theme";
 
 // Frontend Services
 import { getSummary, getLowStock, getRecentLogs } from "@/services/dashboardServices";
-import { getGridStringOperators } from "@mui/x-data-grid";
 
 // --- KOMPONEN UTAMA HALAMAN DASHBOARD ---
 export default function DashboardPage() {
@@ -77,16 +75,24 @@ export default function DashboardPage() {
       field: "quantity",
       headerName: "Sisa Stok",
       type: 'number',
-      width: 150,
+      flex:1,
       headerAlign: "center",
       align: "center",
       renderCell: (params) => (
         <Chip
-          label={`${params.row.quantity} ${params.row.unit}`}
+          label={`${params.row.quantity} ${params.row.measurement_unit}`}
           color="error"
           size="small"
         />
       )
+    },
+    {
+      field: "reorder_point",
+      headerName: "Batas Minimum",
+      type: 'number',
+      flex:1,
+      headerAlign: "center",
+      align: "center",
     },
   ], [router]);
 

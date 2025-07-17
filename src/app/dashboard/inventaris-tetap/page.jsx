@@ -58,13 +58,28 @@ export default function AssetAggregatePage() {
     {
       field: "no",
       headerName: "No.",
-      width: 65,
+      width: 45,
       headerAlign: "center",
       align: "center",
       filterable: false,
       sortable: false,
       renderCell: (params) =>
         params.api.getRowIndexRelativeToVisibleRows(params.id) + 1,
+    },
+    {
+      field: "building", headerName: "Gd", width: 50, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
+    },
+    {
+      field: "floor", headerName: "Lt", width: 50, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
+    },
+    {
+      field: "room", headerName: "Ruangan", flex: 1, filterOperators: getGridStringOperators().filter(
+        (operator) => operator.value === 'contains'
+      ),
     },
     {
       field: "productName", headerName: "Nama Aset", flex: 1,
@@ -74,11 +89,6 @@ export default function AssetAggregatePage() {
     },
     {
       field: "brandName", headerName: "Merk", flex: 1, filterOperators: getGridStringOperators().filter(
-        (operator) => operator.value === 'contains'
-      ),
-    },
-    {
-      field: "locationName", headerName: "Lokasi", flex: 1, filterOperators: getGridStringOperators().filter(
         (operator) => operator.value === 'contains'
       ),
     },

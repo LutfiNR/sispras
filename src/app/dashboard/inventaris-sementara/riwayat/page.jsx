@@ -47,7 +47,7 @@ export default function ConsumableLogPage() {
       flex: 1,
       valueGetter: (value, row) => row.stock_item?.product?.name || 'N/A',
     },
-    {
+    { 
       field: "transaction_type",
       headerName: "Jenis Transaksi",
       width: 150,
@@ -86,7 +86,6 @@ export default function ConsumableLogPage() {
 
   return (
     <Box sx={{ height: '80vh', width: '100%' }}>
-      <Typography variant="h4" sx={{ mb: 2 }}>Riwayat Transaksi</Typography>
       <DataGrid
         rows={rows}
         columns={columns}

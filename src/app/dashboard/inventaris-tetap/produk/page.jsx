@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 // 2. Import komponen dari MUI
 import { Button, Stack, IconButton, Box, Snackbar, Alert, Divider } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
+import { DataGrid, getGridStringOperators } from "@mui/x-data-grid";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
