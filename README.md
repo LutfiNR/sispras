@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Aplikasi Sistem Informasi Sarana & Prasarana (SISPRAS)
 
-## Getting Started
+Aplikasi ini adalah sistem informasi berbasis web yang dirancang untuk mengelola dan melacak aset inventaris, baik aset tetap maupun barang habis pakai. Aplikasi ini dibangun menggunakan Next.js dengan App Router dan dilengkapi dengan sistem otentikasi pengguna.
 
-First, run the development server:
+## Fitur Utama
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Manajemen Aset Tetap**  
+    CRUD (Create, Read, Update, Delete) untuk aset individual dengan nomor seri, lokasi, merek, dan lainnya.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Manajemen Inventaris Habis Pakai**  
+    - Katalog produk habis pakai  
+    - Pencatatan stok masuk (penambahan) dan stok keluar (pengambilan)  
+    - Riwayat (log) transaksi untuk setiap item
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+- **Sistem Otentikasi**  
+    Login aman menggunakan email dan password dengan NextAuth.js.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Rute Terlindungi**  
+    Halaman dasbor dan manajemen hanya bisa diakses oleh pengguna yang sudah login.
 
-## Learn More
+- **Pencarian & Filter**  
+    Fungsionalitas pencarian dan filter di semua tabel data.
 
-To learn more about Next.js, take a look at the following resources:
+- **Ekspor Data**  
+    Kemampuan untuk mengekspor laporan aset dan riwayat transaksi ke format CSV.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Antarmuka Responsif**  
+    Dibangun dengan Material-UI (MUI) untuk pengalaman pengguna yang konsisten di berbagai perangkat.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Teknologi yang Digunakan
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Framework:** Next.js (dengan App Router)
+- **Library UI:** Material-UI (MUI) & Toolpad Core
+- **Otentikasi:** NextAuth.js
+- **Database:** MongoDB dengan Mongoose
+- **Validasi:** Zod
+- **Styling:** Emotion
+- **Pembuatan Form:** React Hook Form (diasumsikan untuk form yang kompleks)
