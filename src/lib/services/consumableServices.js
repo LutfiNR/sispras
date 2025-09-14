@@ -420,3 +420,134 @@ export async function recordUsage(data, userId) {
     await dbSession.endSession();
   }
 }
+
+/**
+ * [BARU] BE Service: Mengambil SEMUA riwayat transaksi (log) untuk keperluan ekspor,
+ * dengan tambahan filter berdasarkan periode (rentang tanggal).
+ * @param {object} options - Opsi query termasuk filters (dengan startDate, endDate), sortBy, order.
+ * @returns {Promise<Array>} - Hasil data log yang telah diagregasi dan siap diekspor.
+ */
+export async function exportConsumableLogs({
+  sortBy = 'createdAt',
+  order = 'desc',
+  filters = {},
+}) {
+  const sortOptions = { [sortBy]: order === 'desc' ? -1 : 1 };
+  const pipeline = [];
+
+  // --- Tahap 1: Join Bertingkat (Sama seperti getPaginatedConsumableLogs) ---
+  pipeline.push(
+    { $lookup: { from: 'consumablestocks', localField: 'stock_item', foreignField: '_id', as: 'stock_item' } },
+    { $unwind: '$stock_item' },
+    { $lookup: { from: 'consumableproducts', localField: 'stock_item.product', foreignField: '_id', as: 'stock_item.product' } },
+    { $unwind: '$stock_item.product' },
+    { $lookup: { from: 'users', localField: 'user', foreignField: '_id', as: 'user' } },
+    { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } }
+  );
+
+  // --- Tahap 2: Logika Filter Dinamis (dengan tambahan filter periode) ---
+  const matchConditions = [];
+  // Ekstrak startDate dan endDate dari filter
+  const { startDate, endDate, q, ...columnFilters } = filters;
+
+  // PENAMBAHAN: Logika untuk filter periode
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0); // Set ke awal hari
+
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999); // Set ke akhir hari
+
+    matchConditions.push({ createdAt: { $gte: start, $lte: end } });
+  }
+
+  // Filter pencarian cepat (q) dan filter kolom lainnya tetap sama
+  if (q) {
+    matchConditions.push({ $or: [
+        { 'stock_item.product.name': { $regex: q, $options: 'i' } },
+        { 'person_name': { $regex: q, $options: 'i' } },
+        { 'notes': { $regex: q, $options: 'i' } },
+        { 'user.name': { $regex: q, $options: 'i' } },
+    ]});
+  }
+  // (Logika filter per kolom lainnya juga bisa ditambahkan di sini jika perlu)
+
+  if (matchConditions.length > 0) {
+    pipeline.push({ $match: { $and: matchConditions } });
+  }
+
+  // --- Tahap 3: Hapus Paginasi, Langsung Sort & Format Output ---
+  pipeline.push(
+    { $sort: sortOptions }, // Terapkan sorting ke semua data
+    {
+      // Tahap $project untuk merapikan output dan memilih field untuk ekspor
+      $project: {
+        _id: 0, // Tidak menyertakan _id
+        "Tanggal Transaksi": { $dateToString: { format: "%d-%m-%Y %H:%M", date: "$createdAt", timezone: "Asia/Jakarta" } },
+        "Nama Produk": "$stock_item.product.name",
+        "Kode Produk": "$stock_item.product.product_code",
+        "Tipe Transaksi": { $cond: { if: { $eq: [ "$transaction_type", "penambahan" ] }, then: "Penambahan Stok", else: "Pengambilan Stok" } },
+        "Jumlah": "$quantity_changed",
+        "Satuan": "$stock_item.product.measurement_unit",
+        "Nama Petugas/Pengambil": "$person_name",
+        "Jabatan": "$person_role",
+        "Catatan": "$notes",
+        "Diinput Oleh": "$user.name"
+      }
+    }
+  );
+  
+  // Eksekusi pipeline dan kembalikan hasilnya
+  const results = await ConsumableLog.aggregate(pipeline);
+  return results;
+}
+export async function exportConsumableStock({
+  sortBy = 'product.name',
+  order = 'asc',
+  filters = {},
+}) {
+  const sortOptions = { [sortBy]: order === 'desc' ? -1 : 1 };
+  const pipeline = [];
+
+  // Tahap 1: Join dengan Produk (Sama seperti getPaginatedConsumableStock)
+  pipeline.push(
+    { $lookup: { from: 'consumableproducts', localField: 'product', foreignField: '_id', as: 'product' } },
+    { $unwind: '$product' }
+  );
+
+  // Tahap 2: Filter (Sama seperti getPaginatedConsumableStock)
+  const matchConditions = [];
+  const { q } = filters;
+  if (q) {
+    matchConditions.push({ $or: [{ 'product.name': { $regex: q, $options: 'i' } }, { 'product.product_code': { $regex: q, $options: 'i' } }] });
+  }
+  if (matchConditions.length > 0) {
+    pipeline.push({ $match: { $and: matchConditions } });
+  }
+
+  // Tahap 3: Hapus Paginasi, Langsung Sort & Format Output
+  pipeline.push(
+    { $sort: sortOptions },
+    {
+      $project: {
+        _id: 0,
+        "Kode Produk": "$product.product_code",
+        "Nama Produk": "$product.name",
+        "Stok Saat Ini": "$quantity",
+        "Satuan": "$product.measurement_unit",
+        "Stok Minimum": "$product.reorder_point",
+        "Status Stok": {
+          $cond: {
+            if: { $lte: ["$quantity", "$product.reorder_point"] },
+            then: "Stok Menipis",
+            else: "Aman"
+          }
+        },
+        "Terakhir Diperbarui": { $dateToString: { format: "%d-%m-%Y %H:%M", date: "$updatedAt", timezone: "Asia/Jakarta" } }
+      }
+    }
+  );
+
+  const results = await ConsumableStock.aggregate(pipeline);
+  return results;
+}

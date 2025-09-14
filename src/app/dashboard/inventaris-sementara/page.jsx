@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 
 // Komponen MUI
@@ -9,6 +9,8 @@ import { DataGrid, getGridStringOperators } from "@mui/x-data-grid";
 import HistoryIcon from "@mui/icons-material/History";
 import DownloadIcon from "@mui/icons-material/Download";
 import UploadIcon from "@mui/icons-material/Upload";
+import { Download } from '@mui/icons-material';
+
 
 // Komponen Kustom & Service
 import CustomToolbar from "@/components/dashboard/CustomToolbar";
@@ -39,6 +41,25 @@ export default function ConsumableStockPage() {
   const handleRestock = () => router.push("/dashboard/inventaris-sementara/barang-masuk");
   const handleUsage = (item) => router.push(`/dashboard/inventaris-sementara/barang-keluar?stockId=${item.id}`);
   const handleViewLog = () => router.push("/dashboard/inventaris-sementara/riwayat");
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownloadInNewTab = () => {
+    setIsDownloading(true);
+
+    // a. Tentukan URL dasar dari API Anda
+    const baseUrl = '/api/inventory/consumable-stock/export';
+
+    console.log("Opening new tab for download:", baseUrl);
+
+    // g. Buka URL di tab baru. Browser akan memulai download secara otomatis.
+    window.open(baseUrl, '_blank');
+
+    // Sedikit delay sebelum menonaktifkan status loading,
+    // karena kita tidak tahu pasti kapan proses di server selesai.
+    setTimeout(() => {
+      setIsDownloading(false);
+    }, 2000); // Tunggu 2 detik
+  };
 
   // --- COLUMN DEFINITIONS ---
   const columns = [
@@ -124,6 +145,15 @@ export default function ConsumableStockPage() {
   return (
     <Box sx={{ height: '80vh', width: '100%' }}>
       <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleDownloadInNewTab}
+          disabled={isDownloading}
+          startIcon={isDownloading ? <CircularProgress size={20} color="inherit" /> : <Download />}
+        >
+          {isDownloading ? 'Mengunduh...' : 'Download Laporan'}
+        </Button>
         <Button variant="outlined" startIcon={<HistoryIcon />} onClick={handleViewLog}>
           Riwayat
         </Button>

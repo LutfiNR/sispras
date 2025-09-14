@@ -424,3 +424,165 @@ export async function getAssetAggregateSummary({
     },
   };
 }
+
+/**
+ * BE Service: Mengambil SEMUA data ringkasan aset untuk keperluan ekspor.
+ * @param {object} options - Opsi query termasuk filters, sortBy, order.
+ * @returns {Promise<Array>} - Hasil data aset yang telah diagregasi.
+ */
+export async function exportAssetSummary({
+  sortBy = "productName",
+  order = "asc",
+  filters = {},
+}) {
+  const sortOptions = { [sortBy]: order === "desc" ? -1 : 1 };
+  const pipeline = [];
+
+  // Tahap 1: Lakukan semua join/lookup
+  pipeline.push(
+    { $lookup: { from: 'products', localField: 'product', foreignField: '_id', as: 'productDetails' } },
+    { $unwind: { path: "$productDetails", preserveNullAndEmptyArrays: true } },
+    { $lookup: { from: 'locations', localField: 'location', foreignField: '_id', as: 'locationDetails' } },
+    { $unwind: { path: "$locationDetails", preserveNullAndEmptyArrays: true } },
+    { $lookup: { from: 'brands', localField: 'productDetails.brand', foreignField: '_id', as: 'brandDetails' } },
+    { $unwind: { path: "$brandDetails", preserveNullAndEmptyArrays: true } }
+  );
+
+  // Tahap 2: Bangun kondisi filter dinamis
+  const matchConditions = [];
+  const { q, ...columnFilters } = filters;
+  if (q) {
+    matchConditions.push({
+      $or: [
+        { "productDetails.name": { $regex: q, $options: "i" } },
+        { "locationDetails.name": { $regex: q, $options: "i" } },
+        { "brandDetails.name": { $regex: q, $options: "i" } },
+      ],
+    });
+  }
+  // (Anda bisa menambahkan logika filter kolom di sini jika perlu)
+  if (matchConditions.length > 0) {
+    pipeline.push({ $match: { $and: matchConditions } });
+  }
+
+  // Tahap 3: Kelompokkan aset
+  pipeline.push({
+    $group: {
+      _id: {
+        productName: "$productDetails.name",
+        brandName: "$brandDetails.name",
+        locationName: "$locationDetails.name",
+        building: "$locationDetails.building",
+        floor: "$locationDetails.floor",
+      },
+      jumlah: { $sum: 1 }
+    }
+  });
+
+  // Tahap 4: Proyeksi (memformat output) dan Sorting
+  pipeline.push(
+    {
+      $project: {
+        _id: 0,
+        "Nama Produk": "$_id.productName",
+        "Merek": "$_id.brandName",
+        "Gedung": "$_id.building",
+        "Lantai": "$_id.floor",
+        "Ruangan": "$_id.locationName",
+        "Jumlah": "$jumlah"
+      }
+    },
+    { $sort: sortOptions }
+  );
+
+  return Asset.aggregate(pipeline);
+}
+
+
+/**
+ * BE Service: Mengambil SEMUA aset individual untuk keperluan ekspor.
+ * @param {object} options - Opsi query
+ * @returns {Promise<Array>} - Hasil yang siap diekspor.
+ */
+export async function exportAllIndividualAssets({
+  sortBy = "createdAt",
+  order = "desc",
+  filters = {},
+}) {
+  const sortOptions = { [sortBy]: order === "desc" ? -1 : 1 };
+  const pipeline = [];
+
+  // Tahap 1: Populasi Data (Lookup)
+  pipeline.push(
+    { $lookup: { from: "products", localField: "product", foreignField: "_id", as: "product" } },
+    { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+    { $lookup: { from: "locations", localField: "location", foreignField: "_id", as: "location" } },
+    { $unwind: { path: "$location", preserveNullAndEmptyArrays: true } },
+    { $lookup: { from: "brands", localField: "product.brand", foreignField: "_id", as: "product.brand" } },
+    { $unwind: { path: "$product.brand", preserveNullAndEmptyArrays: true } }
+  );
+
+  // Tahap 2: Logika Filter Dinamis
+  const matchConditions = [];
+  const { q, ...columnFilters } = filters;
+  if (q) {
+    matchConditions.push({
+      $or: [
+        { serial_number: { $regex: q, $options: "i" } },
+        { "product.name": { $regex: q, $options: "i" } },
+        { "location.name": { $regex: q, $options: "i" } },
+        { "product.brand.name": { $regex: q, $options: "i" } },
+        { condition: { $regex: q, $options: "i" } },
+        { status: { $regex: q, $options: "i" } },
+      ],
+    });
+  }
+  for (const key in columnFilters) {
+    if (columnFilters[key]) {
+      const filterValue = columnFilters[key];
+      let condition;
+      const isObjectId = mongoose.Types.ObjectId.isValid(filterValue);
+      switch (key) {
+        case "product":
+          condition = isObjectId ? { 'product._id': new mongoose.Types.ObjectId(filterValue) } : { 'product.name': { $regex: filterValue, $options: 'i' } };
+          break;
+        case "location":
+          condition = isObjectId ? { 'location._id': new mongoose.Types.ObjectId(filterValue) } : { 'location.name': { $regex: filterValue, $options: 'i' } };
+          break;
+        case "brand":
+          condition = {'product.brand.name': { $regex: filterValue, $options: 'i' }}
+          break;
+        default:
+          condition = { [key]: { $regex: filterValue, $options: 'i' } };
+          break;
+      }
+      matchConditions.push(condition);
+    }
+  }
+  if (matchConditions.length > 0) {
+    pipeline.push({ $match: { $and: matchConditions } });
+  }
+
+  // Tahap 3: Sort & Project (tanpa paginasi)
+  pipeline.push(
+    { $sort: sortOptions },
+    {
+      $project: {
+        _id: 0,
+        "Nomor Seri": "$serial_number",
+        "Nama Produk": "$product.name",
+        "Merek": "$product.brand.name",
+        "Lokasi": "$location.name",
+        "Lantai": "$location.floor",
+        "Gedung": "$location.building",
+        "Kondisi": "$condition",
+        "Status": "$status",
+        "Tahun Pembelian": "$purchased_year",
+        "Estimasi Harga": "$estimated_price",
+        "Dibuat Pada": { $dateToString: { format: "%d-%m-%Y %H:%M", date: "$createdAt", timezone: "Asia/Jakarta" } }
+      }
+    }
+  );
+
+  return Asset.aggregate(pipeline);
+}

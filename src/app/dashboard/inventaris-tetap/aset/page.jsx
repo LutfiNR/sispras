@@ -14,10 +14,12 @@ import {
   Alert,
   Divider,
   Chip,
+  CircularProgress,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import { Download } from '@mui/icons-material';
 
 // 3. Import komponen kustom
 import DialogConfirmation from "@/components/dashboard/DialogConfirmation";
@@ -76,6 +78,34 @@ export default function AssetPage() {
     message: "",
     severity: "success",
   });
+
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownloadInNewTab = () => {
+    setIsDownloading(true);
+
+    // a. Tentukan URL dasar dari API Anda
+    const baseUrl = '/api/inventory/assets/export';
+
+    // b. Siapkan parameter dasar
+    const baseParams = {
+      type: 'individual', // Ganti ke 'summary' jika perlu
+    };
+
+    // f. Buat URL lengkap
+    const finalUrl = `${baseUrl}?type=${baseParams.type}`;
+
+    console.log("Opening new tab for download:", finalUrl);
+
+    // g. Buka URL di tab baru. Browser akan memulai download secara otomatis.
+    window.open(finalUrl, '_blank');
+
+    // Sedikit delay sebelum menonaktifkan status loading,
+    // karena kita tidak tahu pasti kapan proses di server selesai.
+    setTimeout(() => {
+      setIsDownloading(false);
+    }, 2000); // Tunggu 2 detik
+  };
 
   // --- Handler untuk dialog ---
   const handleOpenDeleteDialog = (id) => {
@@ -258,6 +288,16 @@ export default function AssetPage() {
           sx={{ mb: 2, px: 4 }}
         >
           Tampilkan Semua Aset
+        </Button>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleDownloadInNewTab}
+          disabled={isDownloading}
+          startIcon={isDownloading ? <CircularProgress size={20} color="inherit" /> : <Download />}
+          sx={{ mb: 2, px: 4 }}
+        >
+          {isDownloading ? 'Mengunduh...' : 'Download Laporan'}
         </Button>
         <Button
           variant="contained"

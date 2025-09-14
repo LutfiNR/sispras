@@ -1,12 +1,14 @@
 "use client";
 
-import React from "react";
+import React, {useState} from "react";
 import { useRouter } from "next/navigation";
 
 // Komponen MUI
-import { Box, Tooltip, IconButton } from "@mui/material";
+import { Stack, Box, Tooltip, IconButton, Divider, Button } from "@mui/material";
 import { DataGrid, getGridStringOperators } from "@mui/x-data-grid";
 import InfoIcon from '@mui/icons-material/Info';
+import { Download } from '@mui/icons-material';
+
 
 // Komponen Kustom & Service
 import CustomToolbar from "@/components/dashboard/CustomToolbar";
@@ -40,6 +42,34 @@ export default function AssetAggregatePage() {
     sortModel,
     setSortModel,
   } = useDataGridServer(getAssetAggregateSummary, processRow);
+
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownloadInNewTab = () => {
+    setIsDownloading(true);
+
+    // a. Tentukan URL dasar dari API Anda
+    const baseUrl = '/api/inventory/assets/export';
+
+    // b. Siapkan parameter dasar
+    const baseParams = {
+      type: 'summary', // Ganti ke 'summary' jika perlu
+    };
+
+    // f. Buat URL lengkap
+    const finalUrl = `${baseUrl}?type=${baseParams.type}`;
+
+    console.log("Opening new tab for download:", finalUrl);
+
+    // g. Buka URL di tab baru. Browser akan memulai download secara otomatis.
+    window.open(finalUrl, '_blank');
+
+    // Sedikit delay sebelum menonaktifkan status loading,
+    // karena kita tidak tahu pasti kapan proses di server selesai.
+    setTimeout(() => {
+      setIsDownloading(false);
+    }, 2000); // Tunggu 2 detik
+  };
 
   // --- Handler untuk tombol detail ---
   const handleShowDetail = (row) => {
@@ -137,7 +167,22 @@ export default function AssetAggregatePage() {
   ];
 
   return (
-    <Box sx={{ height: '80vh', width: '100%' }}>
+    <Stack>
+          <Divider sx={{ mb: 2 }} />
+          <Box display="flex" justifyContent="end" gap={2}>
+
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleDownloadInNewTab}
+              disabled={isDownloading}
+              startIcon={isDownloading ? <CircularProgress size={20} color="inherit" /> : <Download />}
+              sx={{ mb: 2, px: 4 }}
+            >
+              {isDownloading ? 'Mengunduh...' : 'Download Laporan'}
+            </Button>
+          </Box>
+
       <DataGrid
         rows={rows}
         columns={columns}
@@ -180,6 +225,6 @@ export default function AssetAggregatePage() {
           },
         }}
       />
-    </Box>
+    </Stack>
   );
 }

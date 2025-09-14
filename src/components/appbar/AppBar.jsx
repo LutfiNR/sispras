@@ -8,6 +8,7 @@ import TurnedInIcon from '@mui/icons-material/TurnedIn';
 import TableChartIcon from '@mui/icons-material/TableChart';
 import HistoryIcon from "@mui/icons-material/History";
 import CategoryIcon from '@mui/icons-material/Category';
+import AssessmentIcon from '@mui/icons-material/Assessment';
 
 
 
@@ -79,6 +80,11 @@ export const NAVIGATION = [
     segment: "dashboard/inventaris-sementara/kategori",
     title: "Kategori",
     icon: <CategoryIcon />,
+  },
+  {
+    segment: "dashboard/inventaris-sementara/laporan",
+    title: "Laporan",
+    icon: <AssessmentIcon />,
   },
 ];
 
