@@ -19,7 +19,7 @@ export default function SignIn() {
       const password = formData.get("password");
 
       const result = await signIn("credentials", {
-        redirect: false,
+        redirect: true,
         email: email,
         password: password,
       });
